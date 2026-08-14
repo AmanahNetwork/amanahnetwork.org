@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "dev": "cd amanah-frontend && npm run dev",
+    "dev:backend": "cd Amanah-backend && npm start",
     "build": "cd amanah-frontend && npm install && npm run build",
     "start": "cd Amanah-backend && npm start"
   }
