@@ -34,6 +34,7 @@ const connectDB = async () => {
 };
 const allowedOrigins = [
   process.env.CLIENT_URL,
+  'https://amanahnetworkcom.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:3000'
@@ -41,7 +42,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost:')) {
+    if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost:') || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
       callback(null, true);
