@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd amanah-frontend && npm install && npm run build",
+  "outputDirectory": "amanah-frontend/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "single-amanah-network",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cd amanah-frontend && npm install && npm run build",
+    "start": "cd Amanah-backend && npm start"
+  }
+}
