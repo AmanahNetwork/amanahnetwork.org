@@ -21,25 +21,12 @@ import AdminEntryPortal from './features/admin/AdminEntryPortal';
 
 const Dashboard = lazy(() => import('./features/admin/Dashboard'));
 
-// Helper to enforce security session reset on Home page navigation or page refresh
+// Helper to enforce security session reset on explicit Home page navigation
 function SecurityManager() {
   const location = useLocation();
 
   useEffect(() => {
-    // Clear secret session state on page refresh
-    const isReload = window.performance?.getEntriesByType('navigation')?.[0]?.type === 'reload';
-    if (isReload) {
-      sessionStorage.removeItem('transferGovAuth');
-      sessionStorage.removeItem('govAuth');
-      sessionStorage.removeItem('agentUserAuth');
-      sessionStorage.removeItem('userAuth');
-      sessionStorage.removeItem('dashboardAuth');
-      localStorage.removeItem('governanceKey');
-    }
-  }, []);
-
-  useEffect(() => {
-    // Clear secret session state whenever user navigates to Home page
+    // Clear secret session state whenever user explicitly navigates to Home page
     if (location.pathname === '/') {
       sessionStorage.removeItem('transferGovAuth');
       sessionStorage.removeItem('govAuth');
@@ -95,7 +82,17 @@ function App() {
         <Route path="/vision" element={<Vision />} />
 
         {/* Secret Gate Route for Governance Dashboard */}
-        <Route path={import.meta.env.VITE_VISION_PATH} element={
+        <Route path={import.meta.env.VITE_VISION_PATH || "/ourvisionis61-9"} element={
+          <Suspense fallback={<div>Loading...</div>}>
+            <Dashboard />
+          </Suspense>
+        } />
+        <Route path="/ourvisionis61-9" element={
+          <Suspense fallback={<div>Loading...</div>}>
+            <Dashboard />
+          </Suspense>
+        } />
+        <Route path="/dashboard" element={
           <Suspense fallback={<div>Loading...</div>}>
             <Dashboard />
           </Suspense>

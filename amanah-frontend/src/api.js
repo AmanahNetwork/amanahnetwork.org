@@ -1,13 +1,20 @@
 import axios from 'axios';
 
-// This automatically picks up the URL from your environment settings
+const getBaseURL = () => {
+  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
+  if (import.meta.env.DEV) return 'http://localhost:5000';
+  return '';
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
-  withCredentials: true, // Include cookies for session management
+  baseURL: getBaseURL(),
+  withCredentials: true,
 });
+
 api.interceptors.request.use(config => {
-  const key = localStorage.getItem('governanceKey'); // Store it after unlock
+  const key = localStorage.getItem('governanceKey');
   if (key) config.headers['x-governance-key'] = key;
   return config;
 });
+
 export default api;
