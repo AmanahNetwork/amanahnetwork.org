@@ -100,9 +100,10 @@ export default function Donate() {
       return;
     }
 
-    const phoneRegex = /^[6-9]\d{9}$/;
-    if (!mobileNumber || !phoneRegex.test(mobileNumber.trim())) {
-      setMessage({ type: 'error', text: 'Please enter a valid 10-digit mobile number starting with 6-9.' });
+    const cleanPhone = (mobileNumber || '').trim().replace(/[\s\-\+]/g, '');
+    const phoneRegex = /^\d{10,15}$/;
+    if (!mobileNumber || !phoneRegex.test(cleanPhone)) {
+      setMessage({ type: 'error', text: 'Please enter a valid mobile number (10 to 15 digits).' });
       return;
     }
 

@@ -29,7 +29,8 @@ export default function Register() {
 
   const isValidPhone = (phone) => {
     if (!phone || !phone.trim()) return true;
-    return /^[6-9]\d{9}$/.test(phone.trim());
+    const cleanPhone = phone.trim().replace(/[\s\-\+]/g, '');
+    return /^\d{10,15}$/.test(cleanPhone);
   };
 
   const handleSendOtp = async () => {
