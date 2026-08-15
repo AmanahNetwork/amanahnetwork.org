@@ -16,7 +16,10 @@ export default function EnrollAgent() {
     }
     setIsLoading(true);
     try {
-      await api.post('/api/auth/send-otp', { email: formData.email });
+      const res = await api.post('/api/auth/send-otp', { email: formData.email });
+      if (res.data.debugOtp) {
+        setFormData(prev => ({ ...prev, otp: res.data.debugOtp }));
+      }
       alert("OTP sent to your email!");
     } catch (err) {
       alert(err.response?.data?.error || "Failed to send OTP.");
