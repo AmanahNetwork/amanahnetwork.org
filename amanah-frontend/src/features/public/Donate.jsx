@@ -93,6 +93,19 @@ export default function Donate() {
 
   const handleDonation = async (e) => {
     e.preventDefault();
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!donorEmail || !emailRegex.test(donorEmail.trim())) {
+      setMessage({ type: 'error', text: 'Please enter a valid email address.' });
+      return;
+    }
+
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!mobileNumber || !phoneRegex.test(mobileNumber.trim())) {
+      setMessage({ type: 'error', text: 'Please enter a valid 10-digit mobile number starting with 6-9.' });
+      return;
+    }
+
     if (Number(amount) <= 0) {
       setMessage({ type: 'error', text: 'Please enter a valid donation amount.' });
       return;

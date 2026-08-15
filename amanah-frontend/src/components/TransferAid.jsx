@@ -29,6 +29,17 @@ export default function TransferAid() {
   }
 };
   const handleTransfer = async () => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!formData.email || !emailRegex.test(formData.email.trim())) {
+      alert("Please enter a valid receiving organization email address.");
+      return;
+    }
+
+    if (!formData.orgName || !formData.accountNumber || !formData.ifscCode || !formData.amount) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
     try {
       // Force current date at the moment of execution
       const payload = {

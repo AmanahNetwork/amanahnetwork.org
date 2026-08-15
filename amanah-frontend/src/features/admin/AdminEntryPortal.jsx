@@ -8,17 +8,24 @@ export default function AdminEntryPortal() {
   const [creds, setCreds] = useState({ email: '', password: '' });
 
   const handleLogin = async () => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!creds.email || !emailRegex.test(creds.email.trim())) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+    if (!creds.password) {
+      alert("Please enter your access password.");
+      return;
+    }
     try {
-      // We are just waiting for the success status, so we don't need to assign it to 'res'
       await api.post('/api/auth/login', creds);
       
       sessionStorage.setItem('agentUserAuth', 'true'); 
       sessionStorage.setItem('userAuth', 'true'); 
       navigate('/transferaid');
     } catch (err) { 
-      // It is good practice to log the error to see why it failed
       console.error("Login failed:", err);
-      alert("Access Denied: Invalid Credentials"); 
+      alert(err.response?.data?.error || "Access Denied: Invalid Credentials"); 
     }
   };
 

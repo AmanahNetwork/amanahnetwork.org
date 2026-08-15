@@ -128,7 +128,11 @@ app.post('/api/auth/login', async (req, res) => {
     if (agent && agent.password) {
       const isMatch = await bcrypt.compare(password, agent.password);
       if (isMatch) {
-        const token = jwt.sign({ id: agent._id, role: 'AGENT' }, process.env.JWT_SECRET || 'amanah_secret', { expiresIn: '1h' });
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+          return res.status(500).json({ error: "Server Configuration Error: JWT_SECRET missing" });
+        }
+        const token = jwt.sign({ id: agent._id, role: 'AGENT' }, jwtSecret, { expiresIn: '1h' });
         res.cookie('token', token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
@@ -153,7 +157,11 @@ app.post('/api/auth/login', async (req, res) => {
       }
 
       if (isMatch) {
-        const token = jwt.sign({ id: user._id, role: user.role || 'USER' }, process.env.JWT_SECRET || 'amanah_secret', { expiresIn: '1h' });
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+          return res.status(500).json({ error: "Server Configuration Error: JWT_SECRET missing" });
+        }
+        const token = jwt.sign({ id: user._id, role: user.role || 'USER' }, jwtSecret, { expiresIn: '1h' });
         res.cookie('token', token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
@@ -182,6 +190,18 @@ app.post('/api/register', async (req, res) => {
     
     if (!email || !firstName || !lastName) {
       return res.status(400).json({ error: "First Name, Last Name, and Email are required." });
+    }
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email.toLowerCase().trim())) {
+      return res.status(400).json({ error: "Please enter a valid email address." });
+    }
+
+    if (mobileNumber && mobileNumber.trim()) {
+      const phoneRegex = /^[6-9]\d{9}$/;
+      if (!phoneRegex.test(mobileNumber.trim())) {
+        return res.status(400).json({ error: "Please enter a valid 10-digit mobile number starting with 6-9." });
+      }
     }
 
     const cleanEmail = email.toLowerCase().trim();
@@ -395,6 +415,10 @@ app.post('/api/auth/send-otp', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "Email is required" });
   const cleanEmail = email.toLowerCase().trim();
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(cleanEmail)) {
+    return res.status(400).json({ error: "Please enter a valid email address." });
+  }
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   otpStore[cleanEmail] = otp;
   otpStore[email] = otp;
@@ -479,14 +503,25 @@ app.post('/api/admin/enroll-agent',
       return res.status(400).json({ errors: errors.array() });
     const { name, email, password, kyc, secretKey, otpVerified } = req.body;
 
-    // 1. Verify Governance Key
-    const adminKey = (process.env.ADMIN_KEY || 'amanahnetwork@2026ashidg').trim();
+    // 1. Verify Governance Key (No hardcoded fallbacks)
+    const adminKey = (process.env.ADMIN_KEY || '').trim();
     const providedKey = (secretKey || req.headers['x-governance-key'] || '').trim();
-    if (providedKey && providedKey !== adminKey && secretKey !== adminKey) {
+    if (!adminKey || (providedKey !== adminKey && secretKey !== adminKey)) {
       return res.status(403).json({ error: "Unauthorized: Invalid Governance Key" });
     }
     
     const cleanEmail = (email || '').toLowerCase().trim();
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({ error: "Please enter a valid email address." });
+    }
+
+    // 2. Password Strength Validation: At least 6 characters, 1 uppercase letter, 1 special character
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/?]).{6,}$/;
+    if (!password || !passwordRegex.test(password)) {
+      return res.status(400).json({ error: "Password must be at least 6 characters long, contain at least 1 uppercase letter (A-Z), and 1 special character (e.g. @, #, !)." });
+    }
+
     const isOtpDone = otpVerified || otpStore[cleanEmail]?.verified || otpStore[req.body.email]?.verified;
     if (!isOtpDone) {
       return res.status(401).json({ error: "Email not verified via OTP" });

@@ -14,6 +14,11 @@ export default function EnrollAgent() {
       alert("Please enter your email address.");
       return;
     }
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      alert("Please enter a valid email address (e.g., user@domain.com).");
+      return;
+    }
     setIsLoading(true);
     try {
       const res = await api.post('/api/auth/send-otp', { email: formData.email });
@@ -54,14 +59,23 @@ export default function EnrollAgent() {
       alert("Please provide both Full Name and Password.");
       return;
     }
+    
+    // Password Strength Check: At least 6 chars, 1 uppercase letter, 1 special character
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/?]).{6,}$/;
+    if (!passwordRegex.test(formData.password)) {
+      alert("Password must be at least 6 characters long and contain at least 1 uppercase letter (A-Z) and 1 special character (e.g., @, #, !).");
+      return;
+    }
+
     setIsLoading(true);
     try {
+      const govKey = localStorage.getItem('governanceKey') || import.meta.env.VITE_GOVERNANCE_KEY;
       await api.post('/api/admin/enroll-agent', { 
         name: formData.name,
         email: formData.email,
         password: formData.password,
         otpVerified: isVerified,
-        secretKey: import.meta.env.VITE_GOVERNANCE_KEY 
+        secretKey: govKey
       });
       alert("Agent Enrollment Successful! Redirecting to login...");
       navigate('/admin-login');
@@ -140,11 +154,11 @@ export default function EnrollAgent() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest mb-1">Set Account Password</label>
+              <label className="block text-xs font-bold uppercase tracking-widest mb-1">Set Account Password (Min 6 Chars, 1 Uppercase, 1 Special Char e.g. @)</label>
               <input 
                 type="password"
                 className="border-2 border-black p-3 w-full"
-                placeholder="••••••••" 
+                placeholder="e.g. Amanah@2026" 
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})} 
               />

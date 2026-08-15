@@ -24,7 +24,12 @@ export default function Register() {
   };
 
   const isValidEmail = (email) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test((email || '').trim());
+  };
+
+  const isValidPhone = (phone) => {
+    if (!phone || !phone.trim()) return true;
+    return /^[6-9]\d{9}$/.test(phone.trim());
   };
 
   const handleSendOtp = async () => {
@@ -83,6 +88,11 @@ export default function Register() {
 
     if (!formData.firstName || !formData.lastName) {
       setError("First Name and Last Name are required.");
+      return;
+    }
+
+    if (formData.mobileNumber && !isValidPhone(formData.mobileNumber)) {
+      setError("Please enter a valid 10-digit mobile number starting with 6-9.");
       return;
     }
 
