@@ -36,7 +36,7 @@ export default function TransferAid() {
         date: new Date().toISOString().split('T')[0]
       };
 
-      const transferEndpoint = import.meta.env.VITE_SECRET_TRANSFER_PATH;
+      const transferEndpoint = '/api/admin/secure-aid-fund-transfer';
       await api.post(transferEndpoint, payload);
       alert("Funds sent and confirmation email triggered!");
     } catch (error) {

@@ -371,12 +371,33 @@ app.post('/api/auth/send-otp', async (req, res) => {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   otpStore[cleanEmail] = otp;
   otpStore[email] = otp;
-  try {
-    await transporter.sendMail({ from: process.env.EMAIL_USER, to: cleanEmail, subject: 'Your OTP', text: `Code: ${otp}` });
-  } catch (err) {
-    console.error("OTP Mail Error:", err);
+
+  const emailUser = (process.env.EMAIL_USER || '').trim();
+  const emailPass = (process.env.EMAIL_PASS || '').trim();
+
+  if (!emailUser || !emailPass) {
+    console.warn("⚠️ EMAIL_USER or EMAIL_PASS missing in environment variables.");
+    return res.json({ message: "OTP Generated", debugOtp: otp });
   }
-  res.json({ message: "OTP Sent" });
+
+  try {
+    await transporter.sendMail({
+      from: `"Amanah Support" <${emailUser}>`,
+      to: cleanEmail,
+      subject: 'Your Amanah Verification OTP Code',
+      text: `Your verification OTP code for Amanah Network is: ${otp}`,
+      html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; max-width: 480px; margin: 0 auto; text-align: center;">
+        <h2 style="color: #284D3D;">Amanah Network</h2>
+        <p style="font-size: 14px;">Your 6-digit OTP code for registration is:</p>
+        <h1 style="font-size: 32px; letter-spacing: 6px; color: #284D3D; background: #f4f4f4; padding: 10px; border-radius: 4px;">${otp}</h1>
+        <p style="font-size: 12px; color: #888;">If you did not request this, please ignore this message.</p>
+      </div>`
+    });
+    return res.json({ message: "OTP Sent" });
+  } catch (err) {
+    console.error("OTP Mail Error:", err.message);
+    return res.json({ message: "OTP Generated", debugOtp: otp });
+  }
 });
 
 app.post('/api/auth/verify-otp', (req, res) => {

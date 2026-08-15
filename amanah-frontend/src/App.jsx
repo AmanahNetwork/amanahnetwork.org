@@ -47,10 +47,10 @@ function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
-        
+
         {/* Secret Gate Route for Aid Transfer & Agent Flow */}
         <Route path={import.meta.env.VITE_SECRET_TRANSFER_PATH} element={<AccessPortal />} />
-        
+
         {/* Protected Agent Routes (Require prior entry of VITE_SECRET_TRANSFER_PATH and Key) */}
         <Route path="/admin-login" element={
           <GovernanceGuard>
@@ -82,12 +82,12 @@ function App() {
         <Route path="/vision" element={<Vision />} />
 
         {/* Secret Gate Route for Governance Dashboard */}
-        <Route path={import.meta.env.VITE_VISION_PATH || "/ourvisionis61-9"} element={
+        <Route path={import.meta.env.VITE_VISION_PATH} element={
           <Suspense fallback={<div>Loading...</div>}>
             <Dashboard />
           </Suspense>
         } />
-        <Route path="/ourvisionis61-9" element={
+        <Route path={import.meta.env.VITE_VISION_PATH} element={
           <Suspense fallback={<div>Loading...</div>}>
             <Dashboard />
           </Suspense>

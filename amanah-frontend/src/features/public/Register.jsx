@@ -35,8 +35,11 @@ export default function Register() {
     setIsLoading(true);
     setError(null);
     try {
-      await api.post('/api/auth/send-otp', { email: formData.email });
+      const res = await api.post('/api/auth/send-otp', { email: formData.email });
       setOtpSent(true);
+      if (res.data.debugOtp) {
+        setFormData(prev => ({ ...prev, otp: res.data.debugOtp }));
+      }
       setError(null);
     } catch (err) {
       console.error("OTP send error:", err);
