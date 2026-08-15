@@ -2,10 +2,27 @@
   "name": "single-amanah-network",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "cd amanah-frontend && npm run dev",
     "dev:backend": "cd Amanah-backend && npm start",
     "build": "cd amanah-frontend && npm install && npm run build",
     "start": "cd Amanah-backend && npm start"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "express-validator": "^7.3.2",
+    "helmet": "^8.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.6.3",
+    "nodemailer": "^9.0.1",
+    "razorpay": "^2.9.6",
+    "resend": "^6.12.4"
   }
 }
