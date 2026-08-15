@@ -25,6 +25,7 @@ import Donation from '../models/Donation.js';
 import TransferAid from '../models/TransferAid.js';
 import AuthorizedAgent from '../models/AuthorizedAgent.js';
 const app = express();
+app.set('trust proxy', 1);
 const otpStore = {};
 let isConnected = false;
 // Add this helper function at the top of your file
@@ -59,10 +60,12 @@ app.use(helmet()); // Apply security headers
 app.use(cookieParser());
 app.use(express.json({ limit: '10kb' })); // Limit JSON payload size
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+const razorpay = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) 
+  ? new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    }) 
+  : null;
 // Middleware for every sensitive API route
 const secureApiGuard = (req, res, next) => {
   const secretKey = req.headers['x-governance-key'];
@@ -268,9 +271,10 @@ app.post('/api/payment/create-order', async (req, res) => {
 });
 console.log("Payment route set up successfully.");
 // email
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const sendDonationEmail = async (donorEmail, amount) => {
+  if (!resend) return;
   try {
     await resend.emails.send({
       from: 'Amanah Foundation <onboarding@resend.dev>', // Verified domain later
@@ -497,13 +501,22 @@ app.post('/api/verify-bank', async (req, res) => {
     res.status(500).json({ error: "Verification service unavailable" });
   }
 });
+const secretTransferPath = process.env.SECRET_TRANSFER_PATH || '/api/admin/secure-aid-fund-transfer';
+
 const transferLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per window
-  message: "Too many transfer attempts, please try again later."
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many transfer attempts, please try again later." }
 });
-app.use(process.env.SECRET_TRANSFER_PATH, transferLimiter);
-app.post(process.env.SECRET_TRANSFER_PATH,
+
+app.get(secretTransferPath, (req, res) => {
+  res.status(200).json({ message: "Aid transfer gate operational. Use POST to execute fund transfers." });
+});
+
+app.post(secretTransferPath,
+  transferLimiter,
   [
     body('email').isEmail().normalizeEmail(),
     body('transferData.accountNumber').isLength({ min: 9, max: 18 }).isNumeric(),
