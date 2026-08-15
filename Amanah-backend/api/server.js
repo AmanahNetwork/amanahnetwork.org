@@ -27,15 +27,39 @@ import AuthorizedAgent from '../models/AuthorizedAgent.js';
 const app = express();
 app.set('trust proxy', 1);
 const otpStore = {};
-let isConnected = false;
-// Add this helper function at the top of your file
+let isConnecting = false;
+
 const connectDB = async () => {
-  if (mongoose.connection.readyState >= 1) return;
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+  if (isConnecting) {
+    let retries = 30;
+    while (mongoose.connection.readyState !== 1 && retries > 0) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      retries--;
+    }
+    if (mongoose.connection.readyState === 1) return mongoose.connection;
+  }
+
+  isConnecting = true;
   try {
-    await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 20000, socketTimeoutMS: 45000 });
+    const mongoUri = process.env.MONGO_URI;
+    if (!mongoUri) {
+      throw new Error("MONGO_URI environment variable is missing.");
+    }
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 15000,
+      socketTimeoutMS: 45000,
+      bufferCommands: false
+    });
     console.log("🚀 Connected to MongoDB Atlas");
+    isConnecting = false;
+    return mongoose.connection;
   } catch (err) {
+    isConnecting = false;
     console.error("--- DATABASE CONNECTION FAILURE ---", err.message);
+    throw err;
   }
 };
 const allowedOrigins = [
@@ -76,16 +100,17 @@ const secureApiGuard = (req, res, next) => {
   console.log("SecureApiGuard blocked this request.");
   res.status(403).json({ error: "Access Denied" });
 };
-// --- DATABASE CONNECTION ---
-mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 20000, socketTimeoutMS: 45000 })
-  .then(() => console.log("🚀 Connected to MongoDB Atlas"))
-  .catch(err => console.error("--- DATABASE CONNECTION FAILURE ---", err.message));
-
 // --- MAIL TRANSPORTER SETUP ---
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-});
+const getTransporter = () => {
+  const user = (process.env.EMAIL_USER || '').trim();
+  const pass = (process.env.EMAIL_PASS || '').trim();
+  if (!user || !pass) return null;
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass }
+  });
+};
+const transporter = getTransporter();
 transporter.verify((error, success) => {
   if (error) {
     console.error("❌ Email Transporter Error:", error);
@@ -297,7 +322,11 @@ const sendDonationEmail = async (donorEmail, donorName, amount, paymentId) => {
 
   if (emailUser && emailPass) {
     try {
-      await transporter.sendMail({
+      const mailer = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: emailUser, pass: emailPass }
+      });
+      await mailer.sendMail({
         from: `"Amanah Network" <${emailUser}>`,
         to: donorEmail,
         subject: 'Donation Receipt - Amanah Network',
@@ -305,7 +334,7 @@ const sendDonationEmail = async (donorEmail, donorName, amount, paymentId) => {
           <div style="font-family: sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 8px;">
             <h2 style="color: #284D3D; margin-top: 0;">Thank You for Your Donation!</h2>
             <p>Dear <strong>${donorName || 'Valued Donor'}</strong>,</p>
-            <p>We have successfully received your contribution. Thank you for supporting the Amanah Network!</p>
+            <p>We have successfully received your contribution of <strong>₹${Number(amount).toLocaleString('en-IN')}</strong>. Thank you for supporting the Amanah Network!</p>
             <div style="background-color: #f7fafc; padding: 15px; border-left: 4px solid #284D3D; margin: 20px 0;">
               <p style="margin: 5px 0;"><strong>Donation Amount:</strong> ₹${Number(amount).toLocaleString('en-IN')}</p>
               <p style="margin: 5px 0;"><strong>Payment ID:</strong> ${paymentId}</p>
@@ -339,10 +368,7 @@ const sendDonationEmail = async (donorEmail, donorName, amount, paymentId) => {
 app.post("/api/payment/verify", async (req, res) => {
   let session = null;
   try {
-    if (!isConnected) {
-      await mongoose.connect(process.env.MONGO_URI);
-      isConnected = true;
-    }
+    await connectDB();
     try {
       session = await mongoose.startSession();
       session.startTransaction();
@@ -443,7 +469,11 @@ app.post('/api/auth/send-otp', async (req, res) => {
   }
 
   try {
-    await transporter.sendMail({
+    const mailer = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: emailUser, pass: emailPass }
+    });
+    await mailer.sendMail({
       from: `"Amanah Support" <${emailUser}>`,
       to: cleanEmail,
       subject: 'Your Amanah Verification OTP Code',

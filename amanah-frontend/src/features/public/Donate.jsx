@@ -66,7 +66,8 @@ export default function Donate() {
             setMessage({ type: 'error', text: 'Payment verification failed.' });
         } catch (err) {
           console.error("Verification error:", err);
-          setMessage({ type: 'error', text: 'Verification error.' });
+          const detail = err.response?.data?.error || err.message || "Verification error.";
+          setMessage({ type: 'error', text: `Verification error: ${detail}` });
         } finally {
           setIsLoading(false);
         }
