@@ -481,6 +481,55 @@ app.post('/api/auth/verify-otp', (req, res) => {
   }
   res.status(400).json({ error: "Invalid OTP" });
 });
+
+app.post('/api/contact', async (req, res) => {
+  const { name, mobile, email, message } = req.body;
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: "Full Name, Email Address, and Message are required." });
+  }
+
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email.toLowerCase().trim())) {
+    return res.status(400).json({ error: "Please enter a valid email address." });
+  }
+
+  const adminEmail = (process.env.EMAIL_USER || '').trim();
+  const emailPass = (process.env.EMAIL_PASS || '').trim();
+
+  if (adminEmail && emailPass) {
+    try {
+      const mailer = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: adminEmail, pass: emailPass }
+      });
+
+      await mailer.sendMail({
+        from: `"Amanah Contact Form" <${adminEmail}>`,
+        to: adminEmail,
+        replyTo: email.trim(),
+        subject: `New Contact Submission: ${name.trim()}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <h2 style="color: #284D3D; margin-top: 0;">New Contact Application Details</h2>
+            <p><strong>Full Name:</strong> ${name.trim()}</p>
+            <p><strong>Email Address:</strong> <a href="mailto:${email.trim()}">${email.trim()}</a></p>
+            <p><strong>Mobile Number:</strong> ${mobile ? mobile.trim() : 'N/A'}</p>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p><strong>Why do you want to join?</strong></p>
+            <div style="background-color: #f7fafc; padding: 15px; border-left: 4px solid #284D3D; font-style: italic; white-space: pre-wrap;">${message.trim()}</div>
+          </div>
+        `
+      });
+      console.log(`✅ Contact application from ${name} (${email}) emailed to ${adminEmail}`);
+      return res.status(200).json({ message: "Application submitted successfully." });
+    } catch (err) {
+      console.error("Contact Mailer Error:", err.message);
+      return res.status(200).json({ message: "Application received." });
+    }
+  }
+
+  return res.status(200).json({ message: "Application received." });
+});
 app.get('/api/auth/digilocker', (req, res) => {
   const authUrl = `https://api.digitallocker.gov.in/authorize?client_id=${process.env.DL_ID}&response_type=code`;
   res.redirect(authUrl);
