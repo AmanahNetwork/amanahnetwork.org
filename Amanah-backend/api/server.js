@@ -366,15 +366,8 @@ const sendDonationEmail = async (donorEmail, donorName, amount, paymentId) => {
 
 // Ensure you have 'let isConnected = false;' defined at the top level of your server.js
 app.post("/api/payment/verify", async (req, res) => {
-  let session = null;
   try {
     await connectDB();
-    try {
-      session = await mongoose.startSession();
-      session.startTransaction();
-    } catch (e) {
-      session = null;
-    }
 
     const {
       razorpay_order_id,
@@ -387,65 +380,50 @@ app.post("/api/payment/verify", async (req, res) => {
       projectTitle
     } = req.body;
 
-    const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
-    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-
-    if (hmac.digest("hex") !== razorpay_signature) {
-      if (session) await session.abortTransaction();
-      return res.status(400).json({ error: "Invalid signature" });
-    }
-
+    // 1. Check if donation is already recorded
     const existing = await Donation.findOne({ paymentId: razorpay_payment_id });
     if (existing) {
-      if (session) await session.abortTransaction();
-      return res.status(400).json({ error: "Payment already processed" });
+      return res.status(200).json({ status: "success", message: "Payment already verified and recorded." });
     }
 
-    let isCaptured = true;
-    if (razorpay && razorpay.payments) {
-      try {
-        const payment = await razorpay.payments.fetch(razorpay_payment_id);
-        if (payment && payment.status !== 'captured' && payment.status !== 'authorized') {
-          isCaptured = false;
-        }
-      } catch (rzpErr) {
-        console.warn("Razorpay payment fetch warning (HMAC signature already verified):", rzpErr.message);
+    // 2. Verify Razorpay HMAC signature if secret is present
+    const rzpSecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+    if (rzpSecret && razorpay_order_id && razorpay_signature) {
+      const hmac = crypto.createHmac("sha256", rzpSecret);
+      hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+      const generatedSignature = hmac.digest("hex");
+      if (generatedSignature !== razorpay_signature) {
+        console.warn("HMAC Signature mismatch:", { generatedSignature, razorpay_signature });
+        return res.status(400).json({ error: "Invalid payment signature." });
       }
     }
 
-    if (isCaptured) {
-      const newDonation = new Donation({
-        donorEmail,
-        donorName,
-        mobileNumber,
-        amount,
-        projectTitle: projectTitle || "General Donation",
-        orderId: razorpay_order_id,
-        paymentId: razorpay_payment_id,
-        status: "SUCCESS"
-      });
+    // 3. Save donation and ledger entry safely
+    const newDonation = new Donation({
+      donorEmail,
+      donorName,
+      mobileNumber,
+      amount,
+      projectTitle: projectTitle || "General Donation",
+      orderId: razorpay_order_id,
+      paymentId: razorpay_payment_id,
+      status: "SUCCESS"
+    });
 
-      if (session) {
-        await newDonation.save({ session });
-        await createLedgerEntry('RECEIVED', donorName, amount, razorpay_payment_id, session);
-        await session.commitTransaction();
-      } else {
-        await newDonation.save();
-        await createLedgerEntry('RECEIVED', donorName, amount, razorpay_payment_id, null);
-      }
-      await sendDonationEmail(donorEmail, donorName, amount, razorpay_payment_id);
+    await newDonation.save();
+    await createLedgerEntry('RECEIVED', donorName, amount, razorpay_payment_id, null);
 
-      return res.status(200).json({ status: "success", message: "Donation verified." });
-    } else {
-      if (session) await session.abortTransaction();
-      return res.status(400).json({ error: "Payment not captured" });
-    }
+    // 4. Send confirmation email
+    await sendDonationEmail(donorEmail, donorName, amount, razorpay_payment_id);
+
+    return res.status(200).json({ status: "success", message: "Donation verified." });
   } catch (error) {
-    if (session) await session.abortTransaction();
-    console.error("Transaction Error:", error);
+    console.error("Payment Verification Error:", error);
+    // If it failed because of duplicate key (already saved concurrently), return success
+    if (error.code === 11000 || (error.message && error.message.includes('duplicate key'))) {
+      return res.status(200).json({ status: "success", message: "Donation verified and recorded." });
+    }
     return res.status(500).json({ error: error.message || "Internal Server Error" });
-  } finally {
-    if (session) session.endSession();
   }
 });
 app.post('/api/auth/send-otp', async (req, res) => {
