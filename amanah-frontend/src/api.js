@@ -1,9 +1,14 @@
 import axios from 'axios';
 
 const getBaseURL = () => {
-  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
-  if (import.meta.env.DEV) return 'http://localhost:5000';
-  return '';
+  if (import.meta.env.DEV) {
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+  }
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (!envUrl || envUrl.includes('localhost')) {
+    return '';
+  }
+  return envUrl;
 };
 
 const api = axios.create({
