@@ -34,7 +34,7 @@ export default function Timeline() {
           </h2>
 
           <p className="text-base md:text-lg text-gray-800 leading-relaxed">
-            On the date of founding, 10th April 2026, the members of Amanah Network — Hozaifa Iqbal, Azmat Parimoo, Rehan Ahmad, Irfan Alam, Shadab Alam, and Shahbaz Alam — convened and formally established the initiative with a sincere intention to serve for the sake of Allah, drawing inspiration from Surah As-Saff (61:9). Grounded in the principle of Amanah — trust, responsibility, and accountability — the founding body unanimously affirmed its commitment to serve with integrity, sincerity, and discipline, and to work toward structured, long-term impact guided by the values and principles set forth in this founding declaration.
+            On the date of founding, 10th April 2026, the members of Amanah Network — Hozaifa Iqbal, Azmat Parimoo, Rehan Ahmad, Irfan Alam, Shadab Alam, and Shahbaz Alam — convened and formally established the initiative with a sincere intention to serve for the sake of Allah, drawing inspiration from Surah As-Saff (61:9). Grounded in the principle of Amanah: trust, responsibility, and accountability; the founding body unanimously affirmed its commitment to serve with integrity, sincerity, and discipline, and to work toward structured, long-term impact guided by the values and principles set forth in this founding declaration.
           </p>
         </div>
       </div>
