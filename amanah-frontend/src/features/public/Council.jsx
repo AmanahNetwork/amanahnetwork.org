@@ -1,9 +1,10 @@
-import hozaifaImg from '../../assets/hozaifa.png'; // Adjust path based on your folder structure
+import hozaifaImg from '../../assets/hozaifa.png';
 import azmatImg from '../../assets/azmat.jpeg';
-import irfanImg from '../../assets/irfan.png';
+import irfanImg from '../../assets/irfan.jpg';
 import shadabImg from '../../assets/shadab.jpeg';
 import rehanImg from '../../assets/rehan.png';
 import shahbazImg from '../../assets/shahbaz.jpg';
+
 export default function Council() {
   const members = [
     {
@@ -15,7 +16,7 @@ export default function Council() {
     },
     {
       name: "Azmat Parimoo",
-      role: "Chief Technology Officer (CTO) & Chief Financial Officer (CFO)​",
+      role: "Chief Technology Officer (CTO) & Chief Financial Officer (CFO)",
       image: azmatImg,
       objectPos: "object-[center_30%]",
       bio: "Architects the technological infrastructure and financial systems. Ensures rigorous digital scalability, contribution transparency, and operational integrity for all assets."
@@ -24,7 +25,7 @@ export default function Council() {
       name: "Md Irfan Alam",
       role: "Chief Operating Officer (COO)",
       image: irfanImg,
-      objectPos: "object-[center_30%]",
+      objectPos: "object-[center_25%]",
       bio: "Leads operational strategy and organizational growth. Focused on fostering innovation, enhancing efficiency, and cultivating a high-impact collaborative environment."
     },
     {
@@ -45,7 +46,7 @@ export default function Council() {
       name: "Shahbaz Alam",
       role: "Director of Compliance & Social Welfare",
       image: shahbazImg,
-      objectPos: "object-center",
+      objectPos: "object-[center_25%]",
       bio: "Ensures ethical operational practices and rigorous governance. Upholds organizational discipline and manages welfare-oriented community support mechanisms."
     }
   ];
