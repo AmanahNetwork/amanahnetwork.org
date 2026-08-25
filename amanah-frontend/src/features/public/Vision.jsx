@@ -21,17 +21,9 @@ export default function Vision() {
           <h2 className="text-[#284D3D] font-mono text-xs uppercase tracking-[0.2em] mb-8 font-bold">Our Mission</h2>
           {/* Standardized Text Size: lg:xl */}
           <div className="space-y-10 text-lg md:text-xl text-gray-800 leading-relaxed">
+
             <p>
-              Grounded in the eternal truth of the Holy Qur'an, our organizational vision draws its strength and mandate from Chapter 61, Verse 9 (Surah As-Saff), where it is declared:
-            </p>
-            <p className=" text-[#284D3D] font-bold text-2xl py-8 border-y border-gray-100 text-center">
-              هُوَ الَّذِي أَرْسَلَ رَسُولَهُ بِالْهُدَىٰ وَدِينِ الْحَقِّ لِيُظْهِرَهُ عَلَى الدِّينِ كُلِّهِ
-            </p>
-            <p>
-              "It is He who sent His Messenger with guidance (Al-Huda) and the religion of truth (Deen-il-Haqq) to manifest it over all religion."
-              We believe that true communal honor, resilience, and systemic manifestation (Li-yuzhirahu) can only be achieved when a society is intellectually illuminated and ethically grounded.
-              By translating this divine framework into social action, we look beyond basic literacy to cultivate a vanguard of exceptional young minds.
-              Our goal is to empower these youth to master modern academic, scientific, legal, and governance frameworks, transforming them into torchbearers of Al-Huda who lead with integrity, champion absolute justice, and contribute meaningfully to the national progress and global civilization.
+              Our organizational vision draws its inspiration from timeless calls for truth and justice found across our cultural and civilizational heritage — including the guidance echoed in Surah As-Saff (61:9). We believe that true communal honor, resilience, and progress are only possible when a society is intellectually illuminated and ethically grounded. Moving beyond basic literacy, we are committed to cultivating a vanguard of exceptional young minds. Our goal is to empower these youth to master modern academic, scientific, legal, and governance frameworks — shaping them into principled leaders who act with integrity, champion justice, and contribute meaningfully to national progress and global civilization.
             </p>
           </div>
         </section>
