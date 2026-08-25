@@ -4,7 +4,7 @@ import Navbar from './components/Navbar';
 import { GovernanceGuard } from './components/GovernanceGaurd';
 import AdminGuard from './components/AdminGuard';
 // Features
-import Register from './features/public/Register';
+import PrivacyPolicy from './features/public/PrivacyPolicy';
 import Donate from './features/public/Donate';
 import RequestAid from './features/public/RequestAid';
 import Timeline from './features/public/Timeline';
@@ -71,7 +71,7 @@ function App() {
         } />
 
         {/* Public Routes */}
-        <Route path="/register" element={<Register />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/donate" element={<Donate />} />
         <Route path="/request-aid" element={<RequestAid />} />
         <Route path="/timeline" element={<Timeline />} />

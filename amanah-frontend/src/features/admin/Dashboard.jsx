@@ -86,7 +86,7 @@ export default function Dashboard() {
       if (err.response) {
         alert(err.response.data?.error || "Invalid Governance Key");
       } else if (err.request) {
-        alert("Cannot connect to backend server. Please verify the backend API is running on http://localhost:5000.");
+        alert("Cannot connect to backend server. Please verify the backend API is running .");
       } else {
         alert("Unlock error: " + err.message);
       }
@@ -198,7 +198,7 @@ export default function Dashboard() {
           </div>
           {emailStatus.msg && (
             <p className={`text-xs font-bold mt-2 ${emailStatus.type === 'success' ? 'text-green-700' : 'text-red-600'}`}>
-              {emailStatus.type === 'success' ? '✅' : '❌'} {emailStatus.msg}
+              <span className="font-mono mr-1">{emailStatus.type === 'success' ? '[SUCCESS]' : '[ERROR]'}</span> {emailStatus.msg}
             </p>
           )}
         </div>

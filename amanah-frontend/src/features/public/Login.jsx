@@ -29,7 +29,7 @@ export default function Login({ onLoginSuccess }) {
       <h2>Amanah Secure Gate</h2>
       <p>Enter your network identity email to establish an authorized session context.</p>
 
-      {error && <div style={{ color: 'red', marginBottom: '15px' }}>❌ {error}</div>}
+      {error && <div style={{ color: 'red', marginBottom: '15px' }}>{error}</div>}
 
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <div>

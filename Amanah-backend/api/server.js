@@ -53,7 +53,7 @@ const connectDB = async () => {
       socketTimeoutMS: 45000,
       bufferCommands: false
     });
-    console.log("🚀 Connected to MongoDB Atlas");
+    console.log("Connected to MongoDB Atlas");
     isConnecting = false;
     return mongoose.connection;
   } catch (err) {
@@ -113,9 +113,9 @@ const getTransporter = () => {
 const transporter = getTransporter();
 transporter.verify((error, success) => {
   if (error) {
-    console.error("❌ Email Transporter Error:", error);
+    console.error("[ERROR] Email Transporter Error:", error);
   } else {
-    console.log("✅ Email Transporter is ready to send messages");
+    console.log("[INFO] Email Transporter is ready to send messages");
   }
 });
 // --- ADMIN ROUTES ---
@@ -344,7 +344,7 @@ const sendDonationEmail = async (donorEmail, donorName, amount, paymentId) => {
           </div>
         `
       });
-      console.log(`✅ Donation receipt email sent to ${donorEmail}`);
+      console.log(`Donation receipt email sent to ${donorEmail}`);
     } catch (err) {
       console.error("Donation Email Error:", err.message);
     }
@@ -442,7 +442,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
   const emailPass = (process.env.EMAIL_PASS || '').trim();
 
   if (!emailUser || !emailPass) {
-    console.warn("⚠️ EMAIL_USER or EMAIL_PASS missing in environment variables.");
+    console.warn("[WARNING] EMAIL_USER or EMAIL_PASS missing in environment variables.");
     return res.json({ message: "OTP Generated", debugOtp: otp });
   }
 
@@ -520,7 +520,7 @@ app.post('/api/contact', async (req, res) => {
           </div>
         `
       });
-      console.log(`✅ Contact application from ${name} (${email}) emailed to ${adminEmail}`);
+      console.log(`Contact application from ${name} (${email}) emailed to ${adminEmail}`);
       return res.status(200).json({ message: "Application submitted successfully." });
     } catch (err) {
       console.error("Contact Mailer Error:", err.message);
@@ -946,7 +946,7 @@ app.get('/', (req, res) => {
 const PORT = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
   app.listen(PORT, () => {
-    console.log('🚀 Amanah Backend Server running');
+    console.log('Amanah Backend Server running');
   });
 }
 

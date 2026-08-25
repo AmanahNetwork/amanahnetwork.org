@@ -144,7 +144,7 @@ export default function Donate() {
 
       {message.text && (
         <div className={`p-4 mb-8 font-bold uppercase tracking-widest text-xs border max-w-xl ${message.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
-          {message.type === 'success' ? '✅' : '❌'} {message.text}
+          <span className="font-mono mr-2">{message.type === 'success' ? '[SUCCESS]' : '[ERROR]'}</span> {message.text}
         </div>
       )}
 

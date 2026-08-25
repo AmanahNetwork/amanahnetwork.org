@@ -7,14 +7,14 @@ export default function Navbar() {
 
   const navLinks = [
     { to: "/", label: "Home" },
-    { to: "/register", label: "Register" },
     { to: "/council", label: "Council" },
     { to: "/associates", label: "Associates" },
     { to: "/contact", label: "Contact" },
     { to: "/vision", label: "Vision" },
     { to: "/donate", label: "Donate Portal" },
     { to: "/timeline", label: "Achievements" },
-    { to: "/terms", label: "Terms" }
+    { to: "/terms", label: "Terms" },
+    { to: "/privacy", label: "Privacy" }
   ];
 
   useEffect(() => {
@@ -54,9 +54,18 @@ export default function Navbar() {
         {/* Mobile Hamburger */}
         <button 
           onClick={() => setIsOpen(!isOpen)} 
-          className="md:hidden text-2xl focus:outline-none"
+          className="md:hidden p-2 text-gray-800 focus:outline-none"
+          aria-label="Toggle Menu"
         >
-          ☰
+          {isOpen ? (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
         </button>
       </div>
 

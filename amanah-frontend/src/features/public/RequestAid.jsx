@@ -6,18 +6,18 @@ export default function RequestAid() {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [justificationQuery, setJustificationQuery] = useState('');
-  const [statusMessage, setStatusMessage] = useState('');
+  const [status, setStatus] = useState({ type: '', text: '' });
 
   const handleRequestSubmit = async (e) => {
     e.preventDefault();
 
     // Logic: Prevent negative or zero funding requests
     if (Number(amount) <= 0) {
-      setStatusMessage("❌ Invalid amount. Funding request must be greater than $0.");
+      setStatus({ type: 'error', text: "Invalid amount. Funding request must be greater than $0." });
       return;
     }
 
-    setStatusMessage('');
+    setStatus({ type: '', text: '' });
 
     try {
       await api.post('/api/disbursements/request', {
@@ -27,14 +27,14 @@ export default function RequestAid() {
         justificationQuery
       });
       
-      setStatusMessage(`✅ Allocation proposal logged cleanly for board analysis.`);
+      setStatus({ type: 'success', text: "Allocation proposal logged cleanly for board analysis." });
       setEmail('');
       setTitle('');
       setAmount('');
       setJustificationQuery('');
     } catch (err) {
       console.error(err);
-      setStatusMessage("❌ Registration failure. Verify parameter requirements.");
+      setStatus({ type: 'error', text: "Registration failure. Verify parameter requirements." });
     }
   };
 
@@ -51,9 +51,9 @@ export default function RequestAid() {
         <p className="text-lg text-gray-600 max-w-xl">Submit clear technical metrics regarding your funding needs below.</p>
       </header>
 
-      {statusMessage && (
-        <div className={`p-4 mb-8 font-bold uppercase tracking-widest text-xs border max-w-xl ${statusMessage.includes('✅') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
-          {statusMessage}
+      {status.text && (
+        <div className={`p-4 mb-8 font-bold uppercase tracking-widest text-xs border max-w-xl ${status.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+          <span className="font-mono mr-2">{status.type === 'success' ? '[SUCCESS]' : '[ERROR]'}</span> {status.text}
         </div>
       )}
 

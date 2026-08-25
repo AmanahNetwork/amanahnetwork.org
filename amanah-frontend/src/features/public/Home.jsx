@@ -87,14 +87,14 @@ export default function Home() {
             <h5 className="mb-6 text-gray-400">Governance</h5>
             <div className="flex flex-col gap-4">
              <Link to="/donate" className="hover:text-[#C5A059] transition">Donate Portal</Link>
-              <Link to="/terms" className="hover:text-[#C5A059] transition">Audit Terms</Link>
+              <Link to="/terms" className="hover:text-[#C5A059] transition">Terms & Conditions</Link>
               <Link to="/timeline" className="hover:text-[#C5A059] transition">Achievements</Link>
             </div>
           </div>
           <div>
             <h5 className="mb-6 text-gray-400">Resources</h5>
             <div className="flex flex-col gap-4">
-              <Link to="/register" className="hover:text-[#C5A059] transition">Register</Link>
+              <Link to="/privacy" className="hover:text-[#C5A059] transition">Privacy Policy</Link>
               <Link to="/contact" className="hover:text-[#C5A059] transition">Contact</Link>
             </div>
           </div>

@@ -139,7 +139,7 @@ export default function EnrollAgent() {
         {step === 2 && (
           <div className="flex flex-col gap-4">
             <div className="bg-green-50 border border-green-200 text-green-700 p-3 text-xs font-bold uppercase mb-2">
-              ✅ Email Verified: {formData.email}
+              [VERIFIED] Email Verified: {formData.email}
             </div>
 
             <div>
