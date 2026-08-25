@@ -4,7 +4,7 @@ export default function Vision() {
   return (
     <div className="min-h-screen bg-white text-black font-sans py-24 px-6 md:px-12 lg:px-24">
       <div className="max-w-4xl">
-        
+
         {/* Header: Professional Typography */}
         <header className="mb-24">
           <span className="text-[#C5A059] font-mono tracking-[0.2em] uppercase text-xs mb-6 block">Our Purpose</span>
@@ -28,9 +28,9 @@ export default function Vision() {
               هُوَ الَّذِي أَرْسَلَ رَسُولَهُ بِالْهُدَىٰ وَدِينِ الْحَقِّ لِيُظْهِرَهُ عَلَى الدِّينِ كُلِّهِ
             </p>
             <p>
-              "It is He who sent His Messenger with guidance (Al-Huda) and the religion of truth (Deen-il-Haqq) to manifest it over all religion." 
-              We believe that true communal honor, resilience, and systemic manifestation (Li-yuzhirahu) can only be achieved when a society is intellectually illuminated and ethically grounded. 
-              By translating this divine framework into social action, we look beyond basic literacy to cultivate a vanguard of exceptional young minds. 
+              "It is He who sent His Messenger with guidance (Al-Huda) and the religion of truth (Deen-il-Haqq) to manifest it over all religion."
+              We believe that true communal honor, resilience, and systemic manifestation (Li-yuzhirahu) can only be achieved when a society is intellectually illuminated and ethically grounded.
+              By translating this divine framework into social action, we look beyond basic literacy to cultivate a vanguard of exceptional young minds.
               Our goal is to empower these youth to master modern academic, scientific, legal, and governance frameworks, transforming them into torchbearers of Al-Huda who lead with integrity, champion absolute justice, and contribute meaningfully to the national progress and global civilization.
             </p>
           </div>
@@ -39,21 +39,21 @@ export default function Vision() {
         {/* Strategic Framework: Bold Grid */}
         <section>
           <h2 className="text-[#284D3D] font-mono text-xs uppercase tracking-[0.2em] mb-16 font-bold">Our Vision</h2>
-          
+
           <div className="grid md:grid-cols-1 gap-16">
             <div className="space-y-8">
               {/* Standardized Text Size: lg:xl */}
               <ul className="space-y-8 text-lg md:text-xl text-gray-700">
                 <li className="flex items-start">
-                  <span className="mr-4 text-[#C5A059] font-black text-xl">•</span> 
-                  To bridge the gap between our sublime vision and the harsh ground realities highlighted in national data, the Amanah Network is on a mission to systematically dismantle the financial barriers and critical dropouts that deprives the underprivileged Muslim youth.
+                  <span className="mr-4 text-[#C5A059] font-black text-xl">•</span>
+                  To bridge the gap between our sublime vision and the harsh ground realities highlighted in national data, the Amanah Network is on a mission to systematically dismantle the financial barriers and critical dropouts that deprives the underprivileged youth.
                 </li>
                 <li className="flex items-start">
-                  <span className="mr-4 text-[#C5A059] font-black text-xl">•</span> 
+                  <span className="mr-4 text-[#C5A059] font-black text-xl">•</span>
                   Recognizing that partial aid is rarely enough to tackle generational poverty, we provide a complete, 100% sponsorship model that entirely eliminates financial constraints.
                 </li>
                 <li className="flex items-start">
-                  <span className="mr-4 text-[#C5A059] font-black text-xl">•</span> 
+                  <span className="mr-4 text-[#C5A059] font-black text-xl">•</span>
                   Our mission covers 100% of institutional tuition, all the way from (Class 3rd – 8th).
                 </li>
               </ul>
@@ -64,7 +64,7 @@ export default function Vision() {
         {/* Back to Home Action */}
         <footer className="mt-32 pt-12 border-t border-gray-100">
           <Link to="/" className="text-[#C5A059] font-bold uppercase tracking-[0.2em] hover:text-[#284D3D] transition-colors">
-              Back to Home
+            Back to Home
           </Link>
         </footer>
 

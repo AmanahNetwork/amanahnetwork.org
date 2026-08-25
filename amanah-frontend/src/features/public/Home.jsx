@@ -8,7 +8,7 @@ const post1 = "https://images.unsplash.com/photo-1587440871875-191322ee64b0?q=80
 export default function Home() {
   return (
     <div className="bg-white text-black font-sans">
-      
+
       {/* SECTION 1: HERO */}
       <section className="py-32 px-6 md:px-12 lg:px-24">
         <h1 className="  text-[#284D3D] text-5xl md:text-8xl font-black uppercase tracking-tighter leading-[0.9] mb-8">
@@ -17,7 +17,7 @@ export default function Home() {
           GOVERNANCE.
         </h1>
         <p className="max-w-xl text-lg md:text-xl text-gray-600 mb-12 leading-relaxed">
-          The Amanah Network utilizes blockchain technology to create a decentralised, 100% transparent educational sponsorship platform for underprivileged Muslim youth.
+          The Amanah Network utilizes blockchain technology to create a decentralised, 100% transparent educational sponsorship platform for underprivileged youth.
         </p>
         <Link to="/vision" className="inline-block px-10 py-4 bg-black text-white font-bold uppercase tracking-widest hover:bg-[#C5A059] transition-all duration-300">
           Explore Vision & Mission
@@ -26,7 +26,7 @@ export default function Home() {
 
       {/* SECTION 2: THE CONTEXT */}
       <section className="py-24 px-6 md:px-12 lg:px-24 bg-gray-50">
-       <strong> <span className="text-[#284D3D] font-mono text-xs uppercase tracking-[0.2em] mb-6 block">The Context</span></strong>
+        <strong> <span className="text-[#284D3D] font-mono text-xs uppercase tracking-[0.2em] mb-6 block">The Context</span></strong>
         <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-[0.95] mb-16">Bypassing<br />The Status Quo.</h2>
         <div className="grid md:grid-cols-2 gap-16 text-gray-700 text-lg">
           <p>Recognizing that partial aid is rarely enough to tackle generational poverty, we systematically dismantle the financial barriers and critical dropouts that deprive underprivileged youth, covering 100% of institutional tuition from Class 3rd – 8th.</p>
@@ -79,14 +79,14 @@ export default function Home() {
               <h4 className="font-black uppercase tracking-widest leading-tight">
                 <span className="text-[#284D3D]">Amanah</span><br />
                 <span className="text-[#C5A059]">Network</span>
-              </h4> 
+              </h4>
             </div>
             <p className="text-gray-500 normal-case font-normal leading-relaxed">Dismantling barriers and critical dropouts that deprive underprivileged youth.</p>
           </div>
           <div>
             <h5 className="mb-6 text-gray-400">Governance</h5>
             <div className="flex flex-col gap-4">
-             <Link to="/donate" className="hover:text-[#C5A059] transition">Donate Portal</Link>
+              <Link to="/donate" className="hover:text-[#C5A059] transition">Donate Portal</Link>
               <Link to="/terms" className="hover:text-[#C5A059] transition">Terms & Conditions</Link>
               <Link to="/timeline" className="hover:text-[#C5A059] transition">Achievements</Link>
             </div>
@@ -109,4 +109,4 @@ export default function Home() {
     </div>
   );
 }
-           /*   <Link to="/request-aid" className="hover:text-[#C5A059] transition">Request Aid</Link> */
+/*   <Link to="/request-aid" className="hover:text-[#C5A059] transition">Request Aid</Link> */
