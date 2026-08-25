@@ -20,11 +20,11 @@ export default function PrivacyPolicy() {
       {/* Intro Box */}
       <div className="bg-gray-50 border-l-4 border-[#284D3D] p-6 md:p-8 mb-12">
         <p className="text-base text-gray-700 leading-relaxed">
-          At <strong>Amanah Network</strong>, we are committed to protecting the privacy, confidentiality, and security of our donors, volunteers, beneficiaries, and website visitors. This Privacy Policy details how we collect, use, safeguard, and manage your personal data when you access our website or engage with our programs.
+          At <strong>Amanah Network</strong>, we are deeply committed to safeguarding the privacy, confidentiality, and data security of our donors, volunteers, beneficiaries, and website visitors. This Privacy Policy details how we collect, handle, protect, and process your personal information when you access our platform or participate in our charitable initiatives.
         </p>
       </div>
 
-      {/* Structured Sections */}
+      {/* Structured Sections in Full Sentences */}
       <div className="space-y-12 text-gray-700">
         
         {/* Section 1 */}
@@ -33,14 +33,8 @@ export default function PrivacyPolicy() {
             1. Information We Collect
           </h2>
           <p className="leading-relaxed">
-            We collect information that you voluntarily provide to us when making a donation, contacting our team, or submitting beneficiary applications. This may include:
+            We collect personal information that you voluntarily provide to us when making a donation, contacting our support team, or submitting beneficiary applications. This includes personal identifiers such as your full name, email address, mobile number, and physical mailing address. For financial contributions, payment transactions are handled securely through PCI-DSS compliant payment gateways, ensuring that we never store raw credit card or net banking credentials. In addition, we record beneficiary educational metrics submitted for aid disbursement as well as standard interaction metrics (including IP addresses and browser types) collected automatically for operational security.
           </p>
-          <ul className="list-disc pl-6 space-y-2 font-mono text-sm text-gray-600">
-            <li>Personal Identifiers: Full Name, Email Address, Mobile Number, Mailing Address.</li>
-            <li>Financial Data: Payment confirmation details processed securely via PCI-DSS compliant payment gateways (we do not store raw credit card or net banking credentials).</li>
-            <li>Beneficiary & Sponsorship Metrics: Educational records and verification metrics submitted for aid disbursement.</li>
-            <li>Technical Information: IP address, browser type, and interaction logs collected automatically for operational security.</li>
-          </ul>
         </section>
 
         {/* Section 2 */}
@@ -49,14 +43,8 @@ export default function PrivacyPolicy() {
             2. How We Use Your Information
           </h2>
           <p className="leading-relaxed">
-            The data collected is utilized solely to advance our charitable objectives and maintain organizational transparency:
+            All data collected is utilized strictly to advance our charitable objectives and uphold organizational transparency. Specifically, we use your information to process donations, issue Section 80G tax-deductible receipts, communicate updates regarding sponsorship progress and audit reports, evaluate educational funding requests, and maintain platform security while complying with applicable statutory requirements under Indian law.
           </p>
-          <ul className="list-disc pl-6 space-y-2 font-mono text-sm text-gray-600">
-            <li>Processing donations and issuing Section 80G tax-deductible donation receipts.</li>
-            <li>Communicating updates regarding sponsorship programs, educational impact, and audit reports.</li>
-            <li>Evaluating and processing educational funding allocation requests.</li>
-            <li>Ensuring technical security and compliance with legal obligations under Indian law.</li>
-          </ul>
         </section>
 
         {/* Section 3 */}
@@ -65,13 +53,8 @@ export default function PrivacyPolicy() {
             3. Data Sharing & Confidentiality
           </h2>
           <p className="leading-relaxed">
-            Amanah Network respects your privacy. We do not sell, rent, or trade your personal information to commercial third parties. Information may only be shared under the following conditions:
+            Amanah Network holds your privacy in high regard, and we never sell, rent, or trade your personal information to commercial entities. We share information only with trusted third-party service providers (such as payment processors and email platforms) strictly necessary for transaction fulfillment, when mandated by statutory authorities or court orders, or to protect the legal rights, safety, and security of Amanah Network and its community.
           </p>
-          <ul className="list-disc pl-6 space-y-2 font-mono text-sm text-gray-600">
-            <li>With trusted third-party service providers (such as payment gateways and email services) strictly for transaction fulfillment.</li>
-            <li>When required by statutory regulators, law enforcement agencies, or Indian court orders.</li>
-            <li>To protect the legal rights, safety, and operational security of Amanah Network and its beneficiaries.</li>
-          </ul>
         </section>
 
         {/* Section 4 */}
@@ -80,7 +63,7 @@ export default function PrivacyPolicy() {
             4. Data Security & Protection
           </h2>
           <p className="leading-relaxed">
-            We implement administrative, technical, and physical security measures to safeguard your personal data against unauthorized access, loss, or alteration. All electronic payment transactions are encrypted using Industry Standard Transport Layer Security (TLS/SSL).
+            We employ administrative, technical, and physical safeguards designed to protect your personal data against unauthorized access, loss, or alteration. All electronic payment interactions are transmitted over industry-standard Transport Layer Security (TLS/SSL) encrypted protocols.
           </p>
         </section>
 
@@ -90,7 +73,7 @@ export default function PrivacyPolicy() {
             5. Cookies & Tracking
           </h2>
           <p className="leading-relaxed">
-            Our website uses essential session cookies to enable smooth site navigation, maintain secure session context, and improve user experience. You can choose to disable cookies through your browser settings, though certain functional features of the site may be affected.
+            Our website uses essential session cookies to facilitate smooth navigation, preserve secure authentication state, and enhance user experience. You can choose to disable cookies via your browser settings, though doing so may limit functionality in certain areas of the site.
           </p>
         </section>
 
@@ -100,7 +83,7 @@ export default function PrivacyPolicy() {
             6. Your Rights
           </h2>
           <p className="leading-relaxed">
-            You have the right to request access to the personal data we hold about you, request corrections to inaccurate records, or opt out of receiving non-transactional communications from us at any time.
+            You retain the right to request access to the personal data we hold about you, request corrections to inaccurate or incomplete records, or opt out of receiving non-essential organizational communications at any time.
           </p>
         </section>
 
@@ -110,15 +93,8 @@ export default function PrivacyPolicy() {
             7. Grievance Officer & Contact Information
           </h2>
           <p className="leading-relaxed">
-            For any questions, concerns, or requests regarding this Privacy Policy or your personal data, please contact our designated Grievance Officer:
+            For any inquiries, concerns, or data access requests regarding this Privacy Policy, please contact our designated Grievance Officer (Legal & Governance Cell, Amanah Network) via email at contact@amanahnetwork.in, phone at 7889381717, or mail at our Registered Entity in India. We aim to acknowledge all privacy inquiries within 3 business days and resolve them within 7 business days of receipt.
           </p>
-          <div className="font-mono text-sm space-y-2 text-gray-800">
-            <p><strong>Organization:</strong> Amanah Network</p>
-            <p><strong>Grievance Officer:</strong> Legal & Governance Cell</p>
-            <p><strong>Email:</strong> contact@amanahnetwork.in</p>
-            <p><strong>Phone:</strong> 7889381717</p>
-            <p><strong>Address:</strong> Registered Entity, India</p>
-          </div>
         </section>
 
       </div>

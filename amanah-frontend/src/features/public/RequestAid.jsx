@@ -59,7 +59,7 @@ export default function RequestAid() {
 
       <form onSubmit={handleRequestSubmit} className="space-y-8 max-w-xl">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest mb-2">Registered Email Address</label>
+          <label className="block text-xs font-bold uppercase tracking-widest mb-2">Email Address</label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-4 border-2 border-black focus:border-[#C5A059] outline-none transition-colors" />
         </div>
         
