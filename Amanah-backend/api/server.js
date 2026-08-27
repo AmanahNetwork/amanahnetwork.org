@@ -148,6 +148,14 @@ const contactLimiter = rateLimit({
   message: { error: "Too many contact submissions. Please try again in an hour." }
 });
 
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many payment attempts. Please try again in 15 minutes." }
+});
+
 // --- ADMIN ROUTES ---
 app.post('/api/admin/create-member', (req, res, next) => {
   if (typeof adminAuth === 'function') return adminAuth(req, res, next);
@@ -291,6 +299,8 @@ app.post('/api/register', authLimiter, async (req, res) => {
       isVerified: true
     });
     await newUser.save();
+    delete otpStore[cleanEmail];
+    delete otpStore[email];
 
     try {
       if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
@@ -319,44 +329,53 @@ app.get('/api/verify/:token', async (req, res) => {
 });
 
 // --- PAYMENT INTEGRATION ---
-app.post('/api/payment/create-order', async (req, res) => {
+app.post('/api/payment/create-order', paymentLimiter, async (req, res) => {
   const { amount, donorEmail, projectTitle, donorName, mobileNumber } = req.body;
   if (!amount || !donorEmail || !donorName || !mobileNumber) {
     return res.status(400).json({ error: "Missing required donation details" });
   }
 
+  const numericAmount = Number(amount);
+  if (isNaN(numericAmount) || numericAmount <= 0 || !Number.isFinite(numericAmount)) {
+    return res.status(400).json({ error: "Donation amount must be a positive number." });
+  }
+
   try {
     await connectDB();
-    let userExists = await User.findOne({ email: donorEmail.toLowerCase() });
+    let userExists = await User.findOne({ email: String(donorEmail).toLowerCase().trim() });
     if (!userExists) {
-      const nameParts = donorName.trim().split(' ');
-      const firstName = nameParts[0] || donorName;
+      const nameParts = String(donorName).trim().split(' ');
+      const firstName = nameParts[0] || String(donorName);
       const lastName = nameParts.slice(1).join(' ') || 'Donor';
       userExists = new User({
         firstName,
         lastName,
-        email: donorEmail.toLowerCase(),
-        mobileNumber,
+        email: String(donorEmail).toLowerCase().trim(),
+        mobileNumber: String(mobileNumber).trim(),
         role: 'DONOR',
         isVerified: true
       });
       await userExists.save();
     }
     const order = await razorpay.orders.create({
-      amount: amount * 100,
+      amount: Math.round(numericAmount * 100),
       currency: "INR",
       receipt: `receipt_${Date.now()}`
     });
     res.status(200).json(order);
   } catch (error) {
     console.error("Payment Creation Error:", error);
-    res.status(500).json({ error: error.message || "Failed to create order" });
+    res.status(500).json({ error: "Failed to create payment order." });
   }
 });
 console.log("Payment route set up successfully.");
 const sendDonationEmail = async (donorEmail, donorName, amount, paymentId) => {
   const emailUser = (process.env.EMAIL_USER || '').trim();
   const emailPass = (process.env.EMAIL_PASS || '').trim();
+
+  const safeName = escapeHtml(String(donorName || 'Valued Donor'));
+  const safePaymentId = escapeHtml(String(paymentId));
+  const safeAmount = Number(amount).toLocaleString('en-IN');
 
   if (emailUser && emailPass) {
     try {
@@ -371,11 +390,11 @@ const sendDonationEmail = async (donorEmail, donorName, amount, paymentId) => {
         html: `
           <div style="font-family: sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 8px;">
             <h2 style="color: #284D3D; margin-top: 0;">Thank You for Your Donation!</h2>
-            <p>Dear <strong>${donorName || 'Valued Donor'}</strong>,</p>
-            <p>We have successfully received your contribution of <strong>₹${Number(amount).toLocaleString('en-IN')}</strong>. Thank you for supporting the Amanah Network!</p>
+            <p>Dear <strong>${safeName}</strong>,</p>
+            <p>We have successfully received your contribution of <strong>₹${safeAmount}</strong>. Thank you for supporting the Amanah Network!</p>
             <div style="background-color: #f7fafc; padding: 15px; border-left: 4px solid #284D3D; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>Donation Amount:</strong> ₹${Number(amount).toLocaleString('en-IN')}</p>
-              <p style="margin: 5px 0;"><strong>Payment ID:</strong> ${paymentId}</p>
+              <p style="margin: 5px 0;"><strong>Donation Amount:</strong> ₹${safeAmount}</p>
+              <p style="margin: 5px 0;"><strong>Payment ID:</strong> ${safePaymentId}</p>
               <p style="margin: 5px 0;"><strong>Status:</strong> Success & Verified</p>
             </div>
             <p style="font-size: 12px; color: #718096;">Logged in the Amanah Audit Ledger.</p>
