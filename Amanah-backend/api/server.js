@@ -17,6 +17,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Resend } from 'resend';
 import rateLimit from 'express-rate-limit';
+import mongoSanitize from 'express-mongo-sanitize';
 // Keep your imports for internal files
 import adminAuth from '../middleware/adminAuth.js'; // Note: Must include .js extension
 import Ledger from '../models/Ledger.js';
@@ -24,10 +25,22 @@ import User from '../models/User.js';
 import Donation from '../models/Donation.js';
 import TransferAid from '../models/TransferAid.js';
 import AuthorizedAgent from '../models/AuthorizedAgent.js';
+
 const app = express();
 app.set('trust proxy', 1);
 const otpStore = {};
 let isConnecting = false;
+
+// HTML Escaping Utility to prevent HTML Injection in Emails
+const escapeHtml = (str) => {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
 
 const connectDB = async () => {
   if (mongoose.connection.readyState === 1) {
@@ -74,7 +87,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, true);
+      callback(new Error('Not allowed by CORS'));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -83,6 +96,7 @@ app.use(cors({
 app.use(helmet()); // Apply security headers
 app.use(cookieParser());
 app.use(express.json({ limit: '10kb' })); // Limit JSON payload size
+app.use(mongoSanitize()); // Prevent NoSQL Injection attacks
 
 const razorpay = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) 
   ? new Razorpay({
@@ -118,16 +132,40 @@ transporter.verify((error, success) => {
     console.log("[INFO] Email Transporter is ready to send messages");
   }
 });
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again in 15 minutes." }
+});
+
+const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many contact submissions. Please try again in an hour." }
+});
+
 // --- ADMIN ROUTES ---
-// --- ADMIN ROUTES ---
-// Tailored line 43: Using an anonymous function wrapper to prevent the "handler" error
 app.post('/api/admin/create-member', (req, res, next) => {
-  // This wrapper ensures we call your middleware correctly
   if (typeof adminAuth === 'function') return adminAuth(req, res, next);
-  next(); // Fallback if middleware isn't loaded yet
+  next();
 }, async (req, res) => {
   try {
-    const newAdmin = new User({ ...req.body, role: 'ADMIN', isVerified: false });
+    const { firstName, lastName, email, mobileNumber } = req.body;
+    if (!firstName || !lastName || !email) {
+      return res.status(400).json({ error: "First Name, Last Name, and Email are required." });
+    }
+    const newAdmin = new User({
+      firstName: String(firstName).trim(),
+      lastName: String(lastName).trim(),
+      email: String(email).toLowerCase().trim(),
+      mobileNumber: mobileNumber ? String(mobileNumber).trim() : '',
+      role: 'ADMIN',
+      isVerified: true
+    });
     await newAdmin.save();
     res.status(201).json({ message: "Admin member created successfully." });
   } catch (error) {
@@ -136,14 +174,13 @@ app.post('/api/admin/create-member', (req, res, next) => {
 });
 
 // --- AUTH & REGISTRATION ---
-// --- AUTHENTICATION ---
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     await connectDB();
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required." });
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: "Email and password are required strings." });
     }
 
     const cleanEmail = email.toLowerCase().trim();
@@ -207,14 +244,14 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ error: "Internal Auth Error." });
   }
 });
-//registration
-app.post('/api/register', async (req, res) => {
+// registration
+app.post('/api/register', authLimiter, async (req, res) => {
   try {
     await connectDB();
     const { firstName, lastName, email, mobileNumber, role, otpVerified } = req.body;
     
-    if (!email || !firstName || !lastName) {
-      return res.status(400).json({ error: "First Name, Last Name, and Email are required." });
+    if (!email || !firstName || !lastName || typeof email !== 'string') {
+      return res.status(400).json({ error: "First Name, Last Name, and Email are required strings." });
     }
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -222,8 +259,8 @@ app.post('/api/register', async (req, res) => {
       return res.status(400).json({ error: "Please enter a valid email address." });
     }
 
-    if (mobileNumber && mobileNumber.trim()) {
-      const cleanPhone = mobileNumber.trim().replace(/[\s\-\+]/g, '');
+    if (mobileNumber && String(mobileNumber).trim()) {
+      const cleanPhone = String(mobileNumber).trim().replace(/[\s\-\+]/g, '');
       const phoneRegex = /^\d{10,15}$/;
       if (!phoneRegex.test(cleanPhone)) {
         return res.status(400).json({ error: "Please enter a valid mobile number (10 to 15 digits)." });
@@ -242,13 +279,14 @@ app.post('/api/register', async (req, res) => {
       return res.status(400).json({ error: "An account with this email address already exists." });
     }
 
+    const allowedRole = ['DONOR', 'BENEFICIARY'].includes(role) ? role : 'DONOR';
     const token = crypto.randomBytes(32).toString('hex');
     const newUser = new User({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
+      firstName: String(firstName).trim(),
+      lastName: String(lastName).trim(),
       email: cleanEmail,
-      mobileNumber: mobileNumber || '',
-      role: role || 'DONOR',
+      mobileNumber: mobileNumber ? String(mobileNumber).trim() : '',
+      role: allowedRole,
       verificationToken: token,
       isVerified: true
     });
@@ -426,9 +464,9 @@ app.post("/api/payment/verify", async (req, res) => {
     return res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 });
-app.post('/api/auth/send-otp', async (req, res) => {
+app.post('/api/auth/send-otp', authLimiter, async (req, res) => {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ error: "Email is required" });
+  if (!email || typeof email !== 'string') return res.status(400).json({ error: "Valid email string is required" });
   const cleanEmail = email.toLowerCase().trim();
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   if (!emailRegex.test(cleanEmail)) {
@@ -442,8 +480,8 @@ app.post('/api/auth/send-otp', async (req, res) => {
   const emailPass = (process.env.EMAIL_PASS || '').trim();
 
   if (!emailUser || !emailPass) {
-    console.warn("[WARNING] EMAIL_USER or EMAIL_PASS missing in environment variables.");
-    return res.json({ message: "OTP Generated", debugOtp: otp });
+    console.warn("[WARNING] EMAIL_USER or EMAIL_PASS missing. OTP generated internally.");
+    return res.json({ message: "OTP Sent" }); // NEVER expose debugOtp to client
   }
 
   try {
@@ -466,15 +504,15 @@ app.post('/api/auth/send-otp', async (req, res) => {
     return res.json({ message: "OTP Sent" });
   } catch (err) {
     console.error("OTP Mail Error:", err.message);
-    return res.json({ message: "OTP Generated", debugOtp: otp });
+    return res.json({ message: "OTP Sent" });
   }
 });
 
-app.post('/api/auth/verify-otp', (req, res) => {
+app.post('/api/auth/verify-otp', authLimiter, (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ error: "Email and OTP are required" });
-  const cleanEmail = email.toLowerCase().trim();
-  if (otpStore[cleanEmail] === otp || otpStore[email] === otp) {
+  const cleanEmail = String(email).toLowerCase().trim();
+  if (otpStore[cleanEmail] === String(otp) || otpStore[email] === String(otp)) {
     otpStore[cleanEmail] = { verified: true };
     otpStore[email] = { verified: true };
     return res.json({ verified: true });
@@ -482,19 +520,24 @@ app.post('/api/auth/verify-otp', (req, res) => {
   res.status(400).json({ error: "Invalid OTP" });
 });
 
-app.post('/api/contact', async (req, res) => {
+app.post('/api/contact', contactLimiter, async (req, res) => {
   const { name, mobile, email, message } = req.body;
   if (!name || !email || !message) {
     return res.status(400).json({ error: "Full Name, Email Address, and Message are required." });
   }
 
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  if (!emailRegex.test(email.toLowerCase().trim())) {
+  if (!emailRegex.test(String(email).toLowerCase().trim())) {
     return res.status(400).json({ error: "Please enter a valid email address." });
   }
 
   const adminEmail = (process.env.EMAIL_USER || '').trim();
   const emailPass = (process.env.EMAIL_PASS || '').trim();
+
+  const safeName = escapeHtml(String(name).trim());
+  const safeEmail = escapeHtml(String(email).trim());
+  const safeMobile = mobile ? escapeHtml(String(mobile).trim()) : 'N/A';
+  const safeMessage = escapeHtml(String(message).trim());
 
   if (adminEmail && emailPass) {
     try {
@@ -506,21 +549,21 @@ app.post('/api/contact', async (req, res) => {
       await mailer.sendMail({
         from: `"Amanah Contact Form" <${adminEmail}>`,
         to: adminEmail,
-        replyTo: email.trim(),
-        subject: `New Contact Submission: ${name.trim()}`,
+        replyTo: safeEmail,
+        subject: `New Contact Submission: ${safeName}`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 8px;">
             <h2 style="color: #284D3D; margin-top: 0;">New Contact Application Details</h2>
-            <p><strong>Full Name:</strong> ${name.trim()}</p>
-            <p><strong>Email Address:</strong> <a href="mailto:${email.trim()}">${email.trim()}</a></p>
-            <p><strong>Mobile Number:</strong> ${mobile ? mobile.trim() : 'N/A'}</p>
+            <p><strong>Full Name:</strong> ${safeName}</p>
+            <p><strong>Email Address:</strong> <a href="mailto:${safeEmail}">${safeEmail}</a></p>
+            <p><strong>Mobile Number:</strong> ${safeMobile}</p>
             <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
             <p><strong>Why do you want to join?</strong></p>
-            <div style="background-color: #f7fafc; padding: 15px; border-left: 4px solid #284D3D; font-style: italic; white-space: pre-wrap;">${message.trim()}</div>
+            <div style="background-color: #f7fafc; padding: 15px; border-left: 4px solid #284D3D; font-style: italic; white-space: pre-wrap;">${safeMessage}</div>
           </div>
         `
       });
-      console.log(`Contact application from ${name} (${email}) emailed to ${adminEmail}`);
+      console.log(`Contact application from ${safeName} (${safeEmail}) emailed to ${adminEmail}`);
       return res.status(200).json({ message: "Application submitted successfully." });
     } catch (err) {
       console.error("Contact Mailer Error:", err.message);
@@ -910,8 +953,8 @@ async function createLedgerEntry(actionType, target, amount, transactionId, sess
   }
 }
 // --- DONATIONS 
-app.get('/api/donations', async (req, res) => {
-  res.status(200).json(await Donation.find());
+app.get('/api/donations', adminAuth, async (req, res) => {
+  res.status(200).json(await Donation.find().select('-__v'));
 });
 
 
