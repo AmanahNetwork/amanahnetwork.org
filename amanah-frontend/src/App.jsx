@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import Navbar from './components/Navbar';
 import { GovernanceGuard } from './components/GovernanceGaurd';
 import AdminGuard from './components/AdminGuard';
+import CookieConsent from './components/CookieConsent';
 // Features
 import PrivacyPolicy from './features/public/PrivacyPolicy';
 import Donate from './features/public/Donate';
@@ -101,6 +102,7 @@ function App() {
         {/* Fallback to Home */}
         <Route path="*" element={<Home />} />
       </Routes>
+      <CookieConsent />
     </Router>
   );
 }

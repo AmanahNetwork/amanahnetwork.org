@@ -28,7 +28,7 @@ const adminAuth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, jwtSecret);
-    const user = await User.findById(decoded.id).select('-verificationToken');
+    const user = await User.findById(decoded.id).select('-verificationToken -password');
     
     if (user && user.isVerified && (user.role === 'ADMIN' || decoded.role === 'AGENT')) {
       req.user = user;

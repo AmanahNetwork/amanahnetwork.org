@@ -93,10 +93,23 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
-app.use(helmet()); // Apply security headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  frameguard: { action: "deny" }
+}));
 app.use(cookieParser());
 app.use(express.json({ limit: '10kb' })); // Limit JSON payload size
 app.use(mongoSanitize()); // Prevent NoSQL Injection attacks
+
+// Standardized Secure Cookie Options
+const getSecureCookieOptions = (customMaxAge = 3600000) => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  maxAge: customMaxAge,
+  path: '/'
+});
 
 const razorpay = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) 
   ? new Razorpay({
@@ -134,10 +147,10 @@ transporter.verify((error, success) => {
 });
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many requests. Please try again in 15 minutes." }
+  message: { error: "Too many authentication requests. Please try again in 15 minutes." }
 });
 
 const contactLimiter = rateLimit({
@@ -150,10 +163,18 @@ const contactLimiter = rateLimit({
 
 const paymentLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many payment attempts. Please try again in 15 minutes." }
+  message: { error: "Too many payment operations. Please try again in 15 minutes." }
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Rate limit exceeded. Please try again later." }
 });
 
 // --- ADMIN ROUTES ---
@@ -203,12 +224,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
           return res.status(500).json({ error: "Server Configuration Error: JWT_SECRET missing" });
         }
         const token = jwt.sign({ id: agent._id, role: 'AGENT' }, jwtSecret, { expiresIn: '1h' });
-        res.cookie('token', token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 3600000
-        });
+        res.cookie('token', token, getSecureCookieOptions(3600000));
         return res.status(200).json({
           message: "Logged in successfully",
           user: { id: agent._id, name: agent.name, email: agent.email, role: 'AGENT' }
@@ -232,12 +248,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
           return res.status(500).json({ error: "Server Configuration Error: JWT_SECRET missing" });
         }
         const token = jwt.sign({ id: user._id, role: user.role || 'USER' }, jwtSecret, { expiresIn: '1h' });
-        res.cookie('token', token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 3600000
-        });
+        res.cookie('token', token, getSecureCookieOptions(3600000));
         return res.status(200).json({
           message: "Logged in successfully",
           user: { id: user._id, name: `${user.firstName} ${user.lastName}`, email: user.email, role: user.role }
@@ -250,6 +261,48 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   } catch (error) {
     console.error("Login Error:", error);
     res.status(500).json({ error: "Internal Auth Error." });
+  }
+});
+
+// Logout endpoint with secure cookie clearing
+app.post('/api/auth/logout', (req, res) => {
+  try {
+    const { maxAge, ...clearOptions } = getSecureCookieOptions(0);
+    res.clearCookie('token', clearOptions);
+    return res.status(200).json({ message: "Logged out successfully." });
+  } catch (err) {
+    return res.status(500).json({ error: "Logout failed." });
+  }
+});
+
+// GDPR / Data Deletion Request Endpoint
+app.post('/api/user/delete-data', adminAuth, async (req, res) => {
+  try {
+    await connectDB();
+    const userId = req.user?._id;
+    if (!userId) {
+      return res.status(400).json({ error: "User identification missing." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User account not found." });
+    }
+
+    // Anonymize user personal data to retain financial/ledger audit integrity while respecting deletion requests
+    user.firstName = "Anonymized";
+    user.lastName = "User";
+    user.email = `deleted_${Date.now()}_${crypto.randomBytes(4).toString('hex')}@anonymized.amanah`;
+    user.mobileNumber = "";
+    user.isVerified = false;
+    await user.save();
+
+    const { maxAge, ...clearOptions } = getSecureCookieOptions(0);
+    res.clearCookie('token', clearOptions);
+    return res.status(200).json({ message: "Personal identifying information has been successfully removed in compliance with privacy policies." });
+  } catch (error) {
+    console.error("Data Deletion Error:", error);
+    res.status(500).json({ error: "Failed to process data deletion request." });
   }
 });
 // registration
@@ -422,7 +475,7 @@ const sendDonationEmail = async (donorEmail, donorName, amount, paymentId) => {
 };
 
 // Ensure you have 'let isConnected = false;' defined at the top level of your server.js
-app.post("/api/payment/verify", async (req, res) => {
+app.post("/api/payment/verify", paymentLimiter, async (req, res) => {
   try {
     await connectDB();
 
@@ -695,7 +748,7 @@ async function verifyBankAccount(accountNumber, ifsc) {
   }
 }
 // Add this to your server file
-app.post('/api/verify-bank', async (req, res) => {
+app.post('/api/verify-bank', apiLimiter, async (req, res) => {
   const { accountNumber, ifsc, orgName } = req.body;
 
   if (process.env.MOCK_BANK_VERIFICATION === 'true') {
