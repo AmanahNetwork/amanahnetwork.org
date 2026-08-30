@@ -77,17 +77,22 @@ const connectDB = async () => {
 };
 const allowedOrigins = [
   process.env.CLIENT_URL,
+  'https://amanahnetwork.org',
+  'https://www.amanahnetwork.org',
+  'https://amanahnetwork-org.vercel.app',
+  'https://amanahnetwork.in',
+  'https://www.amanahnetwork.in',
   'http://localhost:5173',
   'http://localhost:5000',
   'http://localhost:3000'
-];
+].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.includes('amanahnetwork')) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(null, true);
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -207,7 +212,7 @@ const sendMailHelper = async ({ to, subject, html, text, fromName = "Amanah Supp
 };
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many authentication requests. Please try again in 15 minutes." }
