@@ -1097,6 +1097,14 @@ app.get('/', (req, res) => {
   res.send('Amanah Network API is running. Use /api/ for endpoints.');
 });
 
+// Global Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error("--- GLOBAL API ERROR ---", err.stack || err.message || err);
+  res.status(err.status || 500).json({
+    error: err.message || "Internal Server Error"
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
   app.listen(PORT, () => {
