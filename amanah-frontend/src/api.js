@@ -18,7 +18,10 @@ const api = axios.create({
 
 api.interceptors.request.use(config => {
   const key = localStorage.getItem('governanceKey');
-  if (key) config.headers['x-governance-key'] = key;
+  if (key) {
+    config.headers['x-governance-key'] = key;
+    config.headers['use-secret-key'] = key;
+  }
   return config;
 });
 

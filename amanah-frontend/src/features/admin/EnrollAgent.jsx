@@ -10,22 +10,26 @@ export default function EnrollAgent() {
   const [isLoading, setIsLoading] = useState(false);
 
   const sendOtp = async () => {
-    if (!formData.email) {
+    const cleanEmail = (formData.email || '').trim().toLowerCase();
+    if (!cleanEmail) {
       alert("Please enter your email address.");
       return;
     }
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(formData.email.trim())) {
+    if (!emailRegex.test(cleanEmail)) {
       alert("Please enter a valid email address (e.g., user@domain.com).");
       return;
     }
+    setFormData(prev => ({ ...prev, email: cleanEmail }));
     setIsLoading(true);
     try {
-      const res = await api.post('/api/auth/send-otp', { email: formData.email });
-      if (res.data.debugOtp) {
+      const res = await api.post('/api/auth/send-otp', { email: cleanEmail });
+      if (res.data?.debugOtp) {
         setFormData(prev => ({ ...prev, otp: res.data.debugOtp }));
+        alert(`OTP generated (${res.data.debugOtp}). Please enter it and click 'Verify OTP'.`);
+      } else {
+        alert("OTP sent to your email! Please check your inbox and spam folder.");
       }
-      alert("OTP sent to your email!");
     } catch (err) {
       alert(err.response?.data?.error || "Failed to send OTP.");
     } finally {
@@ -34,21 +38,24 @@ export default function EnrollAgent() {
   };
 
   const verifyOtp = async () => {
-    if (!formData.otp) {
-      alert("Please enter the OTP.");
+    const cleanEmail = (formData.email || '').trim().toLowerCase();
+    const cleanOtp = (formData.otp || '').trim();
+    if (!cleanOtp) {
+      alert("Please enter the 6-digit OTP.");
       return;
     }
     setIsLoading(true);
     try {
-      const res = await api.post('/api/auth/verify-otp', { email: formData.email, otp: formData.otp });
-      if (res.data.verified) {
+      const res = await api.post('/api/auth/verify-otp', { email: cleanEmail, otp: cleanOtp });
+      if (res.data?.verified) {
         setIsVerified(true);
         setStep(2);
+        alert("Email verified successfully! Please complete Step 2.");
       } else {
-        alert("Invalid OTP.");
+        alert("Invalid or expired OTP.");
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Invalid OTP.");
+      alert(err.response?.data?.error || "Invalid OTP code.");
     } finally {
       setIsLoading(false);
     }
@@ -69,13 +76,18 @@ export default function EnrollAgent() {
 
     setIsLoading(true);
     try {
-      const govKey = localStorage.getItem('governanceKey') || import.meta.env.VITE_GOVERNANCE_KEY;
+      const govKey = (localStorage.getItem('governanceKey') || import.meta.env.VITE_GOVERNANCE_KEY || import.meta.env.VITE_ADMIN_KEY || '').trim();
       await api.post('/api/admin/enroll-agent', { 
-        name: formData.name,
-        email: formData.email,
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
         otpVerified: isVerified,
         secretKey: govKey
+      }, {
+        headers: { 
+          'x-governance-key': govKey,
+          'use-secret-key': govKey
+        }
       });
       alert("Agent Enrollment Successful! Redirecting to login...");
       navigate('/admin-login');

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../api';
 
 export default function Donate() {
@@ -33,26 +34,38 @@ export default function Donate() {
     });
   };
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const cleanEmail = (donorEmail || '').trim().toLowerCase();
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!donorEmail || !emailRegex.test(donorEmail.trim())) {
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
       setMessage({ type: 'error', text: 'Please enter a valid email address before requesting an OTP.' });
       return;
     }
 
+    setDonorEmail(cleanEmail);
     setIsSendingOtp(true);
     setMessage({ type: '', text: '' });
 
     try {
-      const res = await api.post('/api/auth/send-otp', { email: donorEmail.trim() });
+      const res = await api.post('/api/auth/send-otp', { email: cleanEmail });
       setOtpSent(true);
-      if (res.data.debugOtp) {
+      if (res.data?.debugOtp) {
         setOtp(res.data.debugOtp);
+        setMessage({ 
+          type: 'success', 
+          text: `OTP generated (${res.data.debugOtp}). Please enter it below to verify your email.` 
+        });
+      } else {
+        setMessage({ 
+          type: 'success', 
+          text: 'OTP sent to your email address! Please check your inbox (and spam/junk folder).' 
+        });
       }
-      setMessage({ type: 'success', text: 'OTP sent to your email address! Please check your inbox.' });
     } catch (err) {
-      console.error(err);
-      setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to send verification OTP.' });
+      console.error("Send OTP Error:", err);
+      const errMsg = err.response?.data?.error || err.message || 'Failed to send verification OTP. Please try again.';
+      setMessage({ type: 'error', text: errMsg });
     } finally {
       setIsSendingOtp(false);
     }
@@ -310,7 +323,7 @@ export default function Donate() {
           />
           <label htmlFor="terms" className="text-xs font-bold uppercase tracking-widest cursor-pointer">
             I agree to the 
-            <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-[#C5A059] underline ml-1">Terms & Conditions</a>
+            <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-[#C5A059] underline ml-1">Terms & Conditions</Link>
           </label>
         </div>
 

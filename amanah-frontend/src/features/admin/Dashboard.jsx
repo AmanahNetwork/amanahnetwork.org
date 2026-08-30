@@ -18,10 +18,11 @@ export default function Dashboard() {
       if (!isUnlocked) return;
 
       try {
-        const keyToUse = inputKey || localStorage.getItem('governanceKey');
+        const keyToUse = (inputKey || localStorage.getItem('governanceKey') || '').trim();
         const config = {
           headers: {
-            'x-governance-key': keyToUse 
+            'x-governance-key': keyToUse,
+            'use-secret-key': keyToUse
           }
         };
         const [analyticsRes, ledgerRes] = await Promise.all([
@@ -35,14 +36,11 @@ export default function Dashboard() {
         setLedger(ledgerRes.data);
       } catch (err) {
         console.error("Sync Error:", err);
-        if (err.response?.status === 401 || err.response?.status === 403) {
-          setIsUnlocked(false);
-        }
       }
     };
 
     fetchData();
-  }, [isUnlocked, dates.from, dates.to, filter.actionType , inputKey]); // Only re-run if these specific values change
+  }, [isUnlocked, dates.from, dates.to, filter.actionType, inputKey]); // Only re-run if these specific values change
 
   useEffect(() => {
     const checkAccess = async () => {

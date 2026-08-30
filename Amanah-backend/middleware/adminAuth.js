@@ -2,12 +2,18 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 const adminAuth = async (req, res, next) => {
-  const useSecretKey = req.headers['use-secret-key'] || req.headers['x-governance-key'];
+  const useSecretKey = (
+    req.headers['x-governance-key'] ||
+    req.headers['use-secret-key'] ||
+    req.headers['x-admin-key'] ||
+    req.headers['admin-key'] ||
+    ''
+  ).trim();
 
   // 1. Check for Master Key
-  const adminKey = (process.env.ADMIN_KEY || '').trim();
-  if (adminKey && useSecretKey && useSecretKey.trim() === adminKey) {
-    req.user = { _id: process.env.SYSTEM_ADMIN_ID || 'SYSTEM_ADMIN', role: 'ADMIN' };
+  const adminKey = (process.env.ADMIN_KEY).trim();
+  if (useSecretKey && (useSecretKey === adminKey)) {
+    req.user = { _id: process.env.SYSTEM_ADMIN_ID, role: 'ADMIN' };
     return next();
   }
 
@@ -29,12 +35,12 @@ const adminAuth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, jwtSecret);
     const user = await User.findById(decoded.id).select('-verificationToken -password');
-    
+
     if (user && user.isVerified && (user.role === 'ADMIN' || decoded.role === 'AGENT')) {
       req.user = user;
       return next();
     }
-    
+
     return res.status(403).json({ error: "Access Denied. Insufficient permissions." });
   } catch (err) {
     console.error("Auth Middleware JWT Verification Error:", err.message);
