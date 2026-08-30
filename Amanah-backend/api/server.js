@@ -17,7 +17,6 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Resend } from 'resend';
 import rateLimit from 'express-rate-limit';
-import mongoSanitize from 'express-mongo-sanitize';
 // Keep your imports for internal files
 import adminAuth from '../middleware/adminAuth.js'; // Note: Must include .js extension
 import Ledger from '../models/Ledger.js';
@@ -105,7 +104,28 @@ app.use(helmet({
 }));
 app.use(cookieParser());
 app.use(express.json({ limit: '10kb' })); // Limit JSON payload size
-app.use(mongoSanitize()); // Prevent NoSQL Injection attacks
+// Express 5 Safe NoSQL Injection Sanitizer
+const sanitizeNoSqlInPlace = (target) => {
+  if (!target || typeof target !== 'object') return;
+  for (const key of Object.keys(target)) {
+    if (key.startsWith('$') || key.includes('.')) {
+      delete target[key];
+    } else if (typeof target[key] === 'object' && target[key] !== null) {
+      sanitizeNoSqlInPlace(target[key]);
+    }
+  }
+};
+
+app.use((req, res, next) => {
+  try {
+    if (req.body && typeof req.body === 'object') sanitizeNoSqlInPlace(req.body);
+    if (req.params && typeof req.params === 'object') sanitizeNoSqlInPlace(req.params);
+    if (req.query && typeof req.query === 'object') sanitizeNoSqlInPlace(req.query);
+  } catch (e) {
+    // Graceful continuation
+  }
+  next();
+});
 
 // Standardized Secure Cookie Options
 const getSecureCookieOptions = (customMaxAge = 3600000) => ({
