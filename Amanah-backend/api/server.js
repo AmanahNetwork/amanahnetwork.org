@@ -473,6 +473,10 @@ app.post('/api/payment/create-order', paymentLimiter, async (req, res) => {
     return res.status(400).json({ error: "Missing required donation details" });
   }
 
+  if (String(donorName).trim().length > 25) {
+    return res.status(400).json({ error: "Donor name cannot exceed 25 characters." });
+  }
+
   const numericAmount = Number(amount);
   if (isNaN(numericAmount) || numericAmount <= 0 || !Number.isFinite(numericAmount)) {
     return res.status(400).json({ error: "Donation amount must be a positive number." });
@@ -568,9 +572,10 @@ app.post("/api/payment/verify", paymentLimiter, async (req, res) => {
     }
 
     // 3. Save donation and ledger entry safely
+    const sanitizedDonorName = String(donorName || 'Valued Donor').trim().slice(0, 25);
     const newDonation = new Donation({
       donorEmail,
-      donorName,
+      donorName: sanitizedDonorName,
       mobileNumber,
       amount,
       projectTitle: projectTitle || "General Donation",
@@ -580,10 +585,10 @@ app.post("/api/payment/verify", paymentLimiter, async (req, res) => {
     });
 
     await newDonation.save();
-    await createLedgerEntry('RECEIVED', donorName, amount, razorpay_payment_id, null);
+    await createLedgerEntry('RECEIVED', sanitizedDonorName, amount, razorpay_payment_id, null);
 
     // 4. Send confirmation email
-    await sendDonationEmail(donorEmail, donorName, amount, razorpay_payment_id);
+    await sendDonationEmail(donorEmail, sanitizedDonorName, amount, razorpay_payment_id);
 
     return res.status(200).json({ status: "success", message: "Donation verified." });
   } catch (error) {

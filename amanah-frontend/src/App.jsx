@@ -19,6 +19,7 @@ import EnrollAgent from './features/admin/EnrollAgent';
 import TransferAid from '../src/components/TransferAid';
 import AccessPortal from './features/public/AccessPortal';
 import AdminEntryPortal from './features/admin/AdminEntryPortal';
+import NotFound from './features/public/NotFound';
 
 const Dashboard = lazy(() => import('./features/admin/Dashboard'));
 
@@ -99,8 +100,8 @@ function App() {
           </Suspense>
         } />
 
-        {/* Fallback to Home */}
-        <Route path="*" element={<Home />} />
+        {/* Custom Formal 404 Page */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
       <CookieConsent />
     </Router>

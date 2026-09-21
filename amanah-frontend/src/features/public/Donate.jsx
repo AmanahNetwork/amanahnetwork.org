@@ -164,6 +164,16 @@ export default function Donate() {
   const handleDonation = async (e) => {
     e.preventDefault();
 
+    if (!donorName || !donorName.trim()) {
+      setMessage({ type: 'error', text: 'Please enter your full name.' });
+      return;
+    }
+
+    if (donorName.trim().length > 25) {
+      setMessage({ type: 'error', text: 'Full Name cannot exceed 25 characters.' });
+      return;
+    }
+
     if (!isEmailVerified) {
       setMessage({ type: 'error', text: 'Please verify your email address via OTP before proceeding.' });
       return;
@@ -214,13 +224,19 @@ export default function Donate() {
 
       <form onSubmit={handleDonation} className="space-y-6 max-w-xl">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest mb-2">Full Name</label>
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-xs font-bold uppercase tracking-widest">Full Name</label>
+            <span className={`text-[10px] font-mono ${donorName.length >= 25 ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+              {donorName.length}/25
+            </span>
+          </div>
           <input 
             type="text" 
             value={donorName} 
-            onChange={(e) => setDonorName(e.target.value)} 
+            maxLength={25}
+            onChange={(e) => setDonorName(e.target.value.slice(0, 25))} 
             required 
-            placeholder="Your Full Name"
+            placeholder="Your Full Name (Max 25 characters)"
             className="w-full p-4 border-2 border-black focus:border-[#C5A059] outline-none"
           />
         </div>
