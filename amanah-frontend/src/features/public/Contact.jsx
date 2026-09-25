@@ -16,6 +16,16 @@ export default function Contact() {
     e.preventDefault();
     setError(null);
 
+    if (formData.name.trim().length > 25) {
+      setError("Full Name cannot exceed 25 characters.");
+      return;
+    }
+
+    if (formData.message.trim().length > 500) {
+      setError("Why do you want to join section cannot exceed 500 characters.");
+      return;
+    }
+
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!formData.email || !emailRegex.test(formData.email.trim())) {
       setError("Please enter a valid email address.");
@@ -71,14 +81,20 @@ export default function Contact() {
 
       <form onSubmit={handleSubmit} className="space-y-6 max-w-xl font-mono">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest mb-2">Full Name</label>
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-xs font-bold uppercase tracking-widest">Full Name</label>
+            <span className={`text-[10px] font-mono ${formData.name.length >= 25 ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+              {formData.name.length}/25
+            </span>
+          </div>
           <input 
             type="text" 
             name="name" 
+            maxLength={25}
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value.slice(0, 25) })}
             required 
-            placeholder="Your Full Name"
+            placeholder="Your Full Name (Max 25 characters)"
             className="w-full p-4 border-2 border-black focus:border-[#284D3D] outline-none transition-colors" 
           />
         </div>
@@ -110,14 +126,20 @@ export default function Contact() {
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest mb-2">Why do you want to join?</label>
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-xs font-bold uppercase tracking-widest">Why do you want to join?</label>
+            <span className={`text-[10px] font-mono ${formData.message.length >= 500 ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+              {formData.message.length}/500
+            </span>
+          </div>
           <textarea 
             name="message" 
+            maxLength={500}
             value={formData.message}
-            onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+            onChange={(e) => setFormData({ ...formData, message: e.target.value.slice(0, 500) })}
             required 
             rows="4" 
-            placeholder="Tell us about your background and motivation..."
+            placeholder="Tell us about your background and motivation (Max 500 characters)..."
             className="w-full p-4 border-2 border-black focus:border-[#284D3D] outline-none transition-colors" 
           />
         </div>

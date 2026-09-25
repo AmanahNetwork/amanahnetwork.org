@@ -851,6 +851,14 @@ app.post('/api/contact', contactLimiter, botProtection, async (req, res) => {
     return res.status(400).json({ error: "Full Name, Email Address, and Message are required." });
   }
 
+  if (String(name).trim().length > 25) {
+    return res.status(400).json({ error: "Full Name cannot exceed 25 characters." });
+  }
+
+  if (String(message).trim().length > 500) {
+    return res.status(400).json({ error: "Why do you want to join section cannot exceed 500 characters." });
+  }
+
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   if (!emailRegex.test(String(email).toLowerCase().trim())) {
     return res.status(400).json({ error: "Please enter a valid email address." });
@@ -931,14 +939,18 @@ app.post('/api/admin/enroll-agent',
   authLimiter,
   [
     body('email').isEmail().normalizeEmail(),
-    body('name').trim().escape()
+    body('name').trim().isLength({ max: 25 }).withMessage('Full Name cannot exceed 25 characters.').escape()
   ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({ error: errors.array()[0]?.msg || "Validation error" });
     }
     const { name, email, password, kyc, secretKey, otpVerified } = req.body || {};
+
+    if (name && String(name).trim().length > 25) {
+      return res.status(400).json({ error: "Full Name cannot exceed 25 characters." });
+    }
 
     // 1. Verify Governance Key with timing-safe comparison
     const adminKey = (process.env.ADMIN_KEY || '').trim();

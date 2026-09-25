@@ -21,7 +21,7 @@ function AuthPortal({ onAuthSuccess, onBack }) {
     <div style={{ maxWidth: '400px', margin: 'auto', padding: '20px', fontFamily: 'sans-serif' }}>
       <h2>{isLogin ? 'Board Member Login' : 'Register Account'}</h2>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {!isLogin && <input placeholder="Full Name" onChange={e => setFormData({...formData, name: e.target.value})} required />}
+        {!isLogin && <input placeholder="Full Name (Max 25 characters)" maxLength={25} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.slice(0, 25)})} required />}
         <input type="email" placeholder="Email" onChange={e => setFormData({...formData, email: e.target.value})} required />
         <input type="password" placeholder="Password" onChange={e => setFormData({...formData, password: e.target.value})} required />
         <button type="submit" style={{ padding: '10px', cursor: 'pointer' }}>{isLogin ? 'Login' : 'Register'}</button>

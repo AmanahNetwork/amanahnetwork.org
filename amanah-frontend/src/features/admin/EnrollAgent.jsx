@@ -66,6 +66,11 @@ export default function EnrollAgent() {
       alert("Please provide both Full Name and Password.");
       return;
     }
+
+    if (formData.name.trim().length > 25) {
+      alert("Full Name cannot exceed 25 characters.");
+      return;
+    }
     
     // Password Strength Check: At least 6 chars, 1 uppercase letter, 1 special character
     const passwordRegex = /^(?=.*[A-Z])(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/?]).{6,}$/;
@@ -155,13 +160,19 @@ export default function EnrollAgent() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-widest mb-1">Full Name</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-bold uppercase tracking-widest">Full Name</label>
+                <span className={`text-[10px] font-mono ${formData.name.length >= 25 ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+                  {formData.name.length}/25
+                </span>
+              </div>
               <input 
                 type="text"
                 className="border-2 border-black p-3 w-full"
-                placeholder="Agent Full Name" 
+                placeholder="Agent Full Name (Max 25 characters)" 
+                maxLength={25}
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})} 
+                onChange={(e) => setFormData({...formData, name: e.target.value.slice(0, 25)})} 
               />
             </div>
 
