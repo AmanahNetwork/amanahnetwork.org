@@ -268,7 +268,7 @@ if (transporter) {
 const resend = (process.env.RESEND_API_KEY || '').trim() ? new Resend(process.env.RESEND_API_KEY.trim()) : null;
 
 // Unified robust mail sender (Nodemailer Gmail from ENV first -> Resend fallback)
-const sendMailHelper = async ({ to, subject, html, text, fromName = "Amanah Support" }) => {
+const sendMailHelper = async ({ to, subject, html, text, fromName = "Amanah Network" }) => {
   const cleanTo = String(to).toLowerCase().trim();
 
   // 1. Try Nodemailer Gmail directly using ENV credentials
@@ -627,7 +627,7 @@ app.post('/api/register', authLimiter, async (req, res) => {
     try {
       if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
         await transporter.sendMail({
-          from: `"Amanah Support" <${process.env.EMAIL_USER}>`,
+          from: `"Amanah Network" <${process.env.EMAIL_USER}>`,
           to: cleanEmail,
           subject: 'THANKS FOR REGISTERING WITH AMANAH',
           text: `Hello ${firstName},\n\nWe are thrilled to welcome you to the Amanah Network! Your account has been created successfully.\nThank you for joining us in making a difference!`,
@@ -1154,8 +1154,8 @@ app.post(secretTransferPath,
         console.error("Disbursement Mail Warning:", mailErr.message);
       }
 
-      res.status(200).json({ 
-        message: "Payment Successful", 
+      res.status(200).json({
+        message: "Payment Successful",
         transactionId: newTransfer._id,
         accountNumber: maskAccountNumber(transferData.accountNumber)
       });
