@@ -24,11 +24,36 @@ import User from '../models/User.js';
 import Donation from '../models/Donation.js';
 import TransferAid from '../models/TransferAid.js';
 import AuthorizedAgent from '../models/AuthorizedAgent.js';
+import AuditLog from '../models/AuditLog.js';
+import { recordAudit } from '../utils/auditLogger.js';
+import { validateFileUpload } from '../utils/uploadSecurity.js';
 
 const app = express();
 app.set('trust proxy', 1);
 const otpStore = {};
 let isConnecting = false;
+
+// Constant-time string comparison to prevent timing attacks
+const safeCompare = (a, b) => {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+};
+
+// Safe regex escaping to prevent ReDoS attacks
+const escapeRegex = (str) => {
+  if (typeof str !== 'string') return '';
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+// PII Masking utility for financial accounts
+const maskAccountNumber = (acc) => {
+  const str = String(acc || '').trim();
+  if (str.length <= 4) return '****';
+  return str.slice(0, 2) + '****' + str.slice(-4);
+};
 
 // HTML Escaping Utility to prevent HTML Injection in Emails
 const escapeHtml = (str) => {
@@ -97,13 +122,69 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
+
+// Hardened Security Headers with Helmet
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-  frameguard: { action: "deny" }
+  frameguard: { action: "deny" },
+  xContentTypeOptions: true,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://checkout.razorpay.com"],
+      frameSrc: ["'self'", "https://api.razorpay.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://api.razorpay.com", "https://*.vercel.app"],
+      fontSrc: ["'self'", "https:", "data:"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"]
+    }
+  }
 }));
+
+// Permissions-Policy Header
+app.use((req, res, next) => {
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(self 'https://api.razorpay.com')");
+  next();
+});
+
+// Force HTTPS in production
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.headers['x-forwarded-proto'] && req.headers['x-forwarded-proto'] !== 'https') {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+}
+
+// Bot Protection & Anti-Automation Middleware
+const botProtection = (req, res, next) => {
+  // 1. Honeypot check
+  if (req.body && req.body._hp_website) {
+    console.warn(`[BOT BLOCKED] Honeypot triggered from IP ${req.ip}`);
+    return res.status(400).json({ error: "Automated submission rejected." });
+  }
+  // 2. Automated scraper check on mutation endpoints
+  const ua = req.headers['user-agent'] || '';
+  if (!ua || /curl|wget|scrapy|python-requests|sqlmap|nikto/i.test(ua)) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: "Request blocked by security policy." });
+    }
+  }
+  next();
+};
+
 app.use(cookieParser());
 app.use(express.json({ limit: '10kb' })); // Limit JSON payload size
+
 // Express 5 Safe NoSQL Injection Sanitizer
 const sanitizeNoSqlInPlace = (target) => {
   if (!target || typeof target !== 'object') return;
@@ -142,7 +223,8 @@ const razorpay = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
     key_secret: process.env.RAZORPAY_KEY_SECRET,
   })
   : null;
-// Middleware for every sensitive API route
+
+// Middleware for sensitive API routes with timing-safe comparison
 const secureApiGuard = (req, res, next) => {
   const secretKey = (
     req.headers['x-governance-key'] ||
@@ -152,10 +234,10 @@ const secureApiGuard = (req, res, next) => {
     ''
   ).trim();
   const adminKey = (process.env.ADMIN_KEY || '').trim();
-  if (adminKey && secretKey && secretKey === adminKey) {
+  if (adminKey && secretKey && safeCompare(secretKey, adminKey)) {
     return next();
   }
-  console.log("SecureApiGuard blocked this request.");
+  console.warn(`[WARN] SecureApiGuard blocked request from IP: ${req.ip}`);
   res.status(403).json({ error: "Access Denied" });
 };
 // --- NODEMAILER & MAIL TRANSPORTER SETUP ---
@@ -232,10 +314,18 @@ const sendMailHelper = async ({ to, subject, html, text, fromName = "Amanah Supp
 };
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50,
+  max: 5, // Strict maximum 5 attempts per window
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many authentication requests. Please try again in 15 minutes." }
+  message: { error: "Too many authentication attempts. Please try again in 15 minutes." }
+});
+
+const otpLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many OTP requests. Please wait 10 minutes." }
 });
 
 const contactLimiter = rateLimit({
@@ -256,7 +346,7 @@ const paymentLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 60,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Rate limit exceeded. Please try again later." }
@@ -272,15 +362,24 @@ app.post('/api/admin/create-member', (req, res, next) => {
     if (!firstName || !lastName || !email) {
       return res.status(400).json({ error: "First Name, Last Name, and Email are required." });
     }
+    const cleanEmail = String(email).toLowerCase().trim();
     const newAdmin = new User({
       firstName: String(firstName).trim(),
       lastName: String(lastName).trim(),
-      email: String(email).toLowerCase().trim(),
+      email: cleanEmail,
       mobileNumber: mobileNumber ? String(mobileNumber).trim() : '',
       role: 'ADMIN',
       isVerified: true
     });
     await newAdmin.save();
+
+    await recordAudit({
+      req,
+      action: 'CREATE_MEMBER',
+      targetResource: cleanEmail,
+      status: 'SUCCESS'
+    });
+
     res.status(201).json({ message: "Admin member created successfully." });
   } catch (error) {
     res.status(400).json({ error: "Failed to create admin member." });
@@ -288,7 +387,7 @@ app.post('/api/admin/create-member', (req, res, next) => {
 });
 
 // --- AUTH & REGISTRATION ---
-app.post('/api/auth/login', authLimiter, async (req, res) => {
+app.post('/api/auth/login', authLimiter, botProtection, async (req, res) => {
   try {
     await connectDB();
     const { email, password } = req.body;
@@ -300,47 +399,124 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     const cleanEmail = email.toLowerCase().trim();
 
     // 1. Check AuthorizedAgent collection (Agent / Board Member logins)
-    const agent = await AuthorizedAgent.findOne({ email: cleanEmail });
-    if (agent && agent.password) {
-      const isMatch = await bcrypt.compare(password, agent.password);
-      if (isMatch) {
-        const jwtSecret = process.env.JWT_SECRET;
-        if (!jwtSecret) {
-          return res.status(500).json({ error: "Server Configuration Error: JWT_SECRET missing" });
+    const agent = await AuthorizedAgent.findOne({ email: cleanEmail }).select('+password');
+    if (agent) {
+      if (agent.lockUntil && agent.lockUntil > Date.now()) {
+        const remainingMinutes = Math.ceil((agent.lockUntil - Date.now()) / (60 * 1000));
+        return res.status(429).json({ error: `Account temporarily locked due to excessive failed attempts. Please try again in ${remainingMinutes} minutes.` });
+      }
+
+      if (agent.password) {
+        const isMatch = await bcrypt.compare(password, agent.password);
+        if (isMatch) {
+          agent.failedLoginAttempts = 0;
+          agent.lockUntil = null;
+          await agent.save();
+
+          const jwtSecret = process.env.JWT_SECRET;
+          if (!jwtSecret) {
+            return res.status(500).json({ error: "Server Configuration Error: JWT_SECRET missing" });
+          }
+          const token = jwt.sign({ id: agent._id, role: 'AGENT' }, jwtSecret, { expiresIn: '1h' });
+          res.cookie('token', token, getSecureCookieOptions(3600000));
+
+          await recordAudit({
+            req,
+            action: 'LOGIN',
+            actorId: agent._id,
+            actorEmail: agent.email,
+            actorRole: 'AGENT',
+            status: 'SUCCESS'
+          });
+
+          return res.status(200).json({
+            message: "Logged in successfully",
+            user: { id: agent._id, name: agent.name, email: agent.email, role: 'AGENT' }
+          });
+        } else {
+          agent.failedLoginAttempts = (agent.failedLoginAttempts || 0) + 1;
+          if (agent.failedLoginAttempts >= 5) {
+            agent.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+          }
+          await agent.save();
+
+          await recordAudit({
+            req,
+            action: 'LOGIN',
+            actorEmail: cleanEmail,
+            actorRole: 'AGENT',
+            status: 'FAILED',
+            details: { reason: "Invalid password credentials" }
+          });
+          return res.status(401).json({ error: "Invalid Credentials" });
         }
-        const token = jwt.sign({ id: agent._id, role: 'AGENT' }, jwtSecret, { expiresIn: '1h' });
-        res.cookie('token', token, getSecureCookieOptions(3600000));
-        return res.status(200).json({
-          message: "Logged in successfully",
-          user: { id: agent._id, name: agent.name, email: agent.email, role: 'AGENT' }
-        });
       }
     }
 
     // 2. Check User collection
-    const user = await User.findOne({ email: cleanEmail });
+    const user = await User.findOne({ email: cleanEmail }).select('+password');
     if (user) {
-      let isMatch = false;
-      if (user.password) {
-        isMatch = await bcrypt.compare(password, user.password);
-      } else {
-        isMatch = true;
+      if (user.lockUntil && user.lockUntil > Date.now()) {
+        const remainingMinutes = Math.ceil((user.lockUntil - Date.now()) / (60 * 1000));
+        return res.status(429).json({ error: `Account temporarily locked due to excessive failed attempts. Please try again in ${remainingMinutes} minutes.` });
       }
 
+      if (!user.password) {
+        return res.status(401).json({ error: "Password login not enabled for this account. Please verify via OTP." });
+      }
+
+      const isMatch = await bcrypt.compare(password, user.password);
       if (isMatch) {
+        user.failedLoginAttempts = 0;
+        user.lockUntil = null;
+        await user.save();
+
         const jwtSecret = process.env.JWT_SECRET;
         if (!jwtSecret) {
           return res.status(500).json({ error: "Server Configuration Error: JWT_SECRET missing" });
         }
         const token = jwt.sign({ id: user._id, role: user.role || 'USER' }, jwtSecret, { expiresIn: '1h' });
         res.cookie('token', token, getSecureCookieOptions(3600000));
+
+        await recordAudit({
+          req,
+          action: 'LOGIN',
+          actorId: user._id,
+          actorEmail: user.email,
+          actorRole: user.role || 'USER',
+          status: 'SUCCESS'
+        });
+
         return res.status(200).json({
           message: "Logged in successfully",
           user: { id: user._id, name: `${user.firstName} ${user.lastName}`, email: user.email, role: user.role }
         });
+      } else {
+        user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+        if (user.failedLoginAttempts >= 5) {
+          user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+        }
+        await user.save();
+
+        await recordAudit({
+          req,
+          action: 'LOGIN',
+          actorEmail: cleanEmail,
+          actorRole: user.role || 'USER',
+          status: 'FAILED',
+          details: { reason: "Invalid password credentials" }
+        });
+        return res.status(401).json({ error: "Invalid Credentials" });
       }
     }
 
+    await recordAudit({
+      req,
+      action: 'LOGIN',
+      actorEmail: cleanEmail,
+      status: 'FAILED',
+      details: { reason: "User not found" }
+    });
     return res.status(401).json({ error: "Invalid Credentials" });
 
   } catch (error) {
@@ -350,10 +526,11 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 });
 
 // Logout endpoint with secure cookie clearing
-app.post('/api/auth/logout', (req, res) => {
+app.post('/api/auth/logout', async (req, res) => {
   try {
     const { maxAge, ...clearOptions } = getSecureCookieOptions(0);
     res.clearCookie('token', clearOptions);
+    await recordAudit({ req, action: 'LOGOUT', status: 'SUCCESS' });
     return res.status(200).json({ message: "Logged out successfully." });
   } catch (err) {
     return res.status(500).json({ error: "Logout failed." });
@@ -381,6 +558,13 @@ app.post('/api/user/delete-data', adminAuth, async (req, res) => {
     user.mobileNumber = "";
     user.isVerified = false;
     await user.save();
+
+    await recordAudit({
+      req,
+      action: 'GDPR_DATA_DELETION',
+      actorId: userId,
+      status: 'SUCCESS'
+    });
 
     const { maxAge, ...clearOptions } = getSecureCookieOptions(0);
     res.clearCookie('token', clearOptions);
@@ -553,22 +737,24 @@ app.post("/api/payment/verify", paymentLimiter, async (req, res) => {
       projectTitle
     } = req.body;
 
-    // 1. Check if donation is already recorded
+    // 1. Check if donation is already recorded (Idempotency)
     const existing = await Donation.findOne({ paymentId: razorpay_payment_id });
     if (existing) {
       return res.status(200).json({ status: "success", message: "Payment already verified and recorded." });
     }
 
-    // 2. Verify Razorpay HMAC signature if secret is present
+    // 2. Verify Razorpay HMAC signature with timing-safe comparison
     const rzpSecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
-    if (rzpSecret && razorpay_order_id && razorpay_signature) {
-      const hmac = crypto.createHmac("sha256", rzpSecret);
-      hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-      const generatedSignature = hmac.digest("hex");
-      if (generatedSignature !== razorpay_signature) {
-        console.warn("HMAC Signature mismatch:", { generatedSignature, razorpay_signature });
-        return res.status(400).json({ error: "Invalid payment signature." });
-      }
+    if (!rzpSecret || !razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ error: "Missing required payment verification parameters." });
+    }
+
+    const hmac = crypto.createHmac("sha256", rzpSecret);
+    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+    const generatedSignature = hmac.digest("hex");
+    if (!safeCompare(generatedSignature, razorpay_signature)) {
+      console.warn("HMAC Signature mismatch for payment:", razorpay_payment_id);
+      return res.status(400).json({ error: "Invalid payment signature." });
     }
 
     // 3. Save donation and ledger entry safely
@@ -587,6 +773,16 @@ app.post("/api/payment/verify", paymentLimiter, async (req, res) => {
     await newDonation.save();
     await createLedgerEntry('RECEIVED', sanitizedDonorName, amount, razorpay_payment_id, null);
 
+    // Record audit event
+    await recordAudit({
+      req,
+      action: 'DONATION_VERIFIED',
+      actorEmail: donorEmail,
+      targetResource: razorpay_payment_id,
+      status: 'SUCCESS',
+      details: { amount, donorName: sanitizedDonorName, projectTitle }
+    });
+
     // 4. Send confirmation email
     await sendDonationEmail(donorEmail, sanitizedDonorName, amount, razorpay_payment_id);
 
@@ -600,7 +796,8 @@ app.post("/api/payment/verify", paymentLimiter, async (req, res) => {
     return res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 });
-app.post('/api/auth/send-otp', authLimiter, async (req, res) => {
+
+app.post('/api/auth/send-otp', otpLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email || typeof email !== 'string') return res.status(400).json({ error: "Valid email string is required" });
   const cleanEmail = email.toLowerCase().trim();
@@ -628,11 +825,11 @@ app.post('/api/auth/send-otp', authLimiter, async (req, res) => {
     return res.json({ message: "OTP Sent successfully to your email." });
   }
 
-  // Fallback for development/testing or unverified free-tier domains
-  console.warn(`[OTP Notice] Direct delivery returned warning for ${cleanEmail}. Internal OTP generated: ${otp}`);
+  // Fallback notice - only include debugOtp in development environment
+  console.warn(`[OTP Notice] Direct delivery returned warning for ${cleanEmail}. Internal OTP generated.`);
   return res.json({
     message: "OTP Sent",
-    debugOtp: otp
+    ...(process.env.NODE_ENV === 'development' ? { debugOtp: otp } : {})
   });
 });
 
@@ -648,7 +845,7 @@ app.post('/api/auth/verify-otp', authLimiter, (req, res) => {
   res.status(400).json({ error: "Invalid OTP" });
 });
 
-app.post('/api/contact', contactLimiter, async (req, res) => {
+app.post('/api/contact', contactLimiter, botProtection, async (req, res) => {
   const { name, mobile, email, message } = req.body;
   if (!name || !email || !message) {
     return res.status(400).json({ error: "Full Name, Email Address, and Message are required." });
@@ -701,6 +898,7 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
 
   return res.status(200).json({ message: "Application received." });
 });
+
 app.get('/api/auth/digilocker', (req, res) => {
   const authUrl = `https://api.digitallocker.gov.in/authorize?client_id=${process.env.DL_ID}&response_type=code`;
   res.redirect(authUrl);
@@ -711,31 +909,30 @@ app.get('/api/auth/digilocker/callback', async (req, res) => {
   const { code } = req.query;
 
   try {
-    // 1. Exchange code for access_token
     const tokenResponse = await axios.post('https://api.digitallocker.gov.in/token', {
       client_id: process.env.DL_ID,
-      client_secret: process.env.DL_SECRET, // You need this!
+      client_secret: process.env.DL_SECRET,
       code: code,
       grant_type: 'authorization_code',
       redirect_uri: process.env.DL_REDIRECT_URI
     });
 
-    // 2. Fetch User Profile
     const profile = await axios.get('https://api.digitallocker.gov.in/user', {
       headers: { Authorization: `Bearer ${tokenResponse.data.access_token}` }
     });
 
-    // 3. Extract KYC info and redirect to frontend with success
-    // profile.data contains Aadhaar name, etc.
     res.redirect(`${process.env.CLIENT_URL}/enrollment?kycSuccess=true&name=${profile.data.name}`);
-
   } catch (error) {
     res.redirect(`${process.env.CLIENT_URL}/enrollment?kycSuccess=false`);
   }
 });
+
 app.post('/api/admin/enroll-agent',
-  [body('email').isEmail().normalizeEmail(),
-  body('name').trim().escape()],
+  authLimiter,
+  [
+    body('email').isEmail().normalizeEmail(),
+    body('name').trim().escape()
+  ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -743,7 +940,7 @@ app.post('/api/admin/enroll-agent',
     }
     const { name, email, password, kyc, secretKey, otpVerified } = req.body || {};
 
-    // 1. Verify Governance Key
+    // 1. Verify Governance Key with timing-safe comparison
     const adminKey = (process.env.ADMIN_KEY || '').trim();
     const providedKey = (
       secretKey ||
@@ -753,7 +950,7 @@ app.post('/api/admin/enroll-agent',
       ''
     ).trim();
 
-    if (!adminKey || !providedKey || providedKey !== adminKey) {
+    if (!adminKey || !providedKey || !safeCompare(providedKey, adminKey)) {
       return res.status(403).json({ error: "Unauthorized: Invalid Governance Key" });
     }
 
@@ -776,7 +973,6 @@ app.post('/api/admin/enroll-agent',
 
     try {
       await connectDB();
-      // 2. Create the Agent
       const newAgent = new AuthorizedAgent({
         name,
         email: cleanEmail,
@@ -785,6 +981,14 @@ app.post('/api/admin/enroll-agent',
       });
 
       await newAgent.save();
+
+      await recordAudit({
+        req,
+        action: 'ENROLL_AGENT',
+        targetResource: cleanEmail,
+        status: 'SUCCESS'
+      });
+
       res.status(201).json({ message: "Agent enrolled successfully." });
     } catch (error) {
       console.error("Enrollment Error:", error);
@@ -797,26 +1001,29 @@ app.post('/api/admin/enroll-agent',
 
 async function verifyBankAccount(accountNumber, ifsc) {
   try {
-    // Razorpay's Account Verification API
     const response = await razorpay.accounts.validate({
       account_number: accountNumber,
       ifsc: ifsc,
-      name: "Beneficiary Name" // Ideally, pass the recipient's name here
+      name: "Beneficiary Name"
     });
-
-    // Return true if verification is successful
     return response.status === 'active';
   } catch (error) {
     console.error("Razorpay Verification Failed:", error);
     return false;
   }
 }
-// Add this to your server file
-app.post('/api/verify-bank', apiLimiter, async (req, res) => {
+
+app.post('/api/verify-bank', apiLimiter, [
+  body('accountNumber').isLength({ min: 9, max: 18 }).isNumeric(),
+  body('ifsc').isLength({ min: 11, max: 11 }).trim().escape()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   const { accountNumber, ifsc, orgName } = req.body;
 
   if (process.env.MOCK_BANK_VERIFICATION === 'true') {
-    console.log("Mocking bank verification for account:", accountNumber);
     return res.status(200).json({ valid: true });
   }
 
@@ -836,6 +1043,7 @@ app.post('/api/verify-bank', apiLimiter, async (req, res) => {
     res.status(500).json({ error: "Verification service unavailable" });
   }
 });
+
 const secretTransferPath = process.env.SECRET_TRANSFER_PATH || '/api/admin/secure-aid-fund-transfer';
 
 const transferLimiter = rateLimit({
@@ -846,12 +1054,13 @@ const transferLimiter = rateLimit({
   message: { error: "Too many transfer attempts, please try again later." }
 });
 
-app.get(secretTransferPath, (req, res) => {
+app.get(secretTransferPath, adminAuth, (req, res) => {
   res.status(200).json({ message: "Aid transfer gate operational. Use POST to execute fund transfers." });
 });
 
 app.post(secretTransferPath,
   transferLimiter,
+  adminAuth, // Enforce strict server-side authentication for fund transfers
   [
     body('email').isEmail().normalizeEmail(),
     body('transferData.accountNumber').isLength({ min: 9, max: 18 }).isNumeric(),
@@ -871,7 +1080,7 @@ app.post(secretTransferPath,
     } catch (e) {
       session = null;
     }
-    const { email, password, transferData } = req.body;
+    const { email, transferData } = req.body;
 
     try {
       await connectDB();
@@ -888,11 +1097,11 @@ app.post(secretTransferPath,
         }
       }
 
-      // Save to Database
+      // Save to Database with session-backed Agent ID
       const newTransfer = new TransferAid({
         ...transferData,
-        agentId: new mongoose.Types.ObjectId(),
-        senderEmail: email || "networkamanah60@gmail.com"
+        agentId: req.user?._id || new mongoose.Types.ObjectId(),
+        senderEmail: req.user?.email || email || "governance@amanahnetwork.org"
       });
 
       if (session) {
@@ -903,6 +1112,21 @@ app.post(secretTransferPath,
         await newTransfer.save();
         await createLedgerEntry('SPENT', transferData.orgName, transferData.amount, newTransfer._id, null);
       }
+
+      // Record tamper-evident audit log
+      await recordAudit({
+        req,
+        action: 'AID_TRANSFER',
+        actorId: req.user?._id,
+        actorEmail: req.user?.email,
+        targetResource: transferData.orgName,
+        status: 'SUCCESS',
+        details: {
+          amount: transferData.amount,
+          orgName: transferData.orgName,
+          maskedAccount: maskAccountNumber(transferData.accountNumber)
+        }
+      });
 
       // Send Email Notification
       try {
@@ -918,7 +1142,11 @@ app.post(secretTransferPath,
         console.error("Disbursement Mail Warning:", mailErr.message);
       }
 
-      res.status(200).json({ message: "Payment Successful", transactionId: newTransfer._id });
+      res.status(200).json({ 
+        message: "Payment Successful", 
+        transactionId: newTransfer._id,
+        accountNumber: maskAccountNumber(transferData.accountNumber)
+      });
 
     } catch (error) {
       if (session) await session.abortTransaction();
@@ -928,42 +1156,40 @@ app.post(secretTransferPath,
       if (session) session.endSession();
     }
   });
-app.post('/api/admin/verify-vault', (req, res) => {
+
+app.post('/api/admin/verify-vault', authLimiter, async (req, res) => {
   const { key } = req.body;
   const adminKey = (process.env.ADMIN_KEY || '').trim();
   const inputKey = (key || '').trim();
-  if (inputKey && inputKey === adminKey) {
-    // We can even set a short-lived "vault-access" cookie here
+  if (adminKey && inputKey && safeCompare(inputKey, adminKey)) {
+    await recordAudit({ req, action: 'VAULT_UNLOCKED', status: 'SUCCESS' });
     return res.status(200).json({ unlocked: true });
   }
+  await recordAudit({ req, action: 'VAULT_UNLOCKED', status: 'FAILED' });
   res.status(403).json({ error: "Invalid Governance Key" });
 });
-// Add this route to server.js
+
 app.get('/api/admin/check-access', adminAuth, (req, res) => {
-  // adminAuth middleware already verified the JWT and user role.
-  // If we reach this line, the user is authorized.
-  res.status(200).json({ authorized: true });
+  res.status(200).json({ authorized: true, user: { id: req.user?._id, role: req.user?.role } });
 });
-// Ensure this is ABOVE your app.listen or export
+
 app.get('/api/admin/ledger', adminAuth, async (req, res) => {
   try {
-    await connectDB(); // Ensure DB connection before querying
+    await connectDB();
     const { from, to, actionType } = req.query;
     const query = {};
     if (from && to && from !== 'undefined' && to !== 'undefined') {
       const startDate = new Date(from);
       const endDate = new Date(to);
-      // Ensure we include the full duration of the 'to' day
       if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
         endDate.setUTCHours(23, 59, 59, 999);
         query.timestamp = { $gte: startDate, $lte: endDate };
       }
     }
     if (actionType && actionType !== 'ALL' && actionType !== 'undefined') {
-      query.actionType = { $regex: new RegExp(actionType, 'i') };
+      // Escape regex special characters to prevent ReDoS attacks
+      query.actionType = { $regex: new RegExp(`^${escapeRegex(actionType)}$`, 'i') };
     } else {
-      // If actionType is 'ALL' or empty, we explicitly ensure the query 
-      // does NOT contain actionType, so it returns all records.
       delete query.actionType;
     }
     const ledgerEntries = await Ledger.find(query).sort({ timestamp: -1 });
@@ -993,7 +1219,7 @@ app.post('/api/admin/send-ledger-email', adminAuth, async (req, res) => {
       }
     }
     if (actionType && actionType !== 'ALL' && actionType !== 'undefined') {
-      query.actionType = { $regex: new RegExp(actionType, 'i') };
+      query.actionType = { $regex: new RegExp(`^${escapeRegex(actionType)}$`, 'i') };
     }
 
     const ledgerEntries = await Ledger.find(query).sort({ timestamp: -1 });
@@ -1009,9 +1235,9 @@ app.post('/api/admin/send-ledger-email', adminAuth, async (req, res) => {
       <tr>
         <td style="padding: 8px; border: 1px solid #ddd;">${new Date(e.timestamp).toLocaleString('en-IN')}</td>
         <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: ${e.actionType === 'RECEIVED' ? '#2e7d32' : '#c62828'};">${e.actionType}</td>
-        <td style="padding: 8px; border: 1px solid #ddd;">${e.target}</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${escapeHtml(e.target)}</td>
         <td style="padding: 8px; border: 1px solid #ddd;">₹${e.amount.toLocaleString()}</td>
-        <td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; font-size: 11px;">${e.transactionId}</td>
+        <td style="padding: 8px; border: 1px solid #ddd; font-family: monospace; font-size: 11px;">${escapeHtml(e.transactionId)}</td>
       </tr>
     `).join('');
 
@@ -1065,36 +1291,41 @@ app.post('/api/admin/send-ledger-email', adminAuth, async (req, res) => {
     res.status(500).json({ error: error.message || "Failed to send ledger email." });
   }
 });
-// A central helper to keep your code DRY
+
+// A central helper to keep code DRY
 async function createLedgerEntry(actionType, target, amount, transactionId, session) {
-  // Add this validation check
   if (!target || !amount || !transactionId) {
     console.error("Ledger Save Failed: Missing fields", { target, amount, transactionId });
     return;
   }
   try {
     const newEntry = new Ledger({
-      actionType, // 'RECEIVED' or 'SPENT'
-      target,     // e.g., 'Donor Name' or 'Project Title'
+      actionType,
+      target,
       amount,
       transactionId,
       timestamp: new Date()
     });
     const saved = await newEntry.save({ session });
-    console.log("Ledger entry saved successfully");
     return saved;
   } catch (err) {
     console.error("Ledger Save Error:", err);
-    throw err; // This helps debug exactly what field is missing
+    throw err;
   }
 }
-// --- DONATIONS 
+
+// --- DONATIONS (Admin Protected)
 app.get('/api/donations', adminAuth, async (req, res) => {
-  res.status(200).json(await Donation.find().select('-__v'));
+  try {
+    await connectDB();
+    const donations = await Donation.find().select('-__v');
+    res.status(200).json(donations);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch donations." });
+  }
 });
 
-
-// --- ANALYTICS ---
+// --- ANALYTICS (Admin Protected)
 app.get('/api/admin/analytics', adminAuth, async (req, res) => {
   try {
     await connectDB();
@@ -1118,6 +1349,32 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to load analytics data" });
   }
 });
+
+// --- AUDIT TRAIL ENDPOINT (Admin Protected) ---
+app.get('/api/admin/audit-logs', adminAuth, async (req, res) => {
+  try {
+    await connectDB();
+    const logs = await AuditLog.find().sort({ createdAt: -1 }).limit(100).select('-__v');
+    res.status(200).json(logs);
+  } catch (error) {
+    console.error("Audit Logs Retrieval Error:", error);
+    res.status(500).json({ error: "Failed to retrieve audit trail." });
+  }
+});
+
+// --- HEALTH CHECK & OBSERVABILITY ---
+app.get('/api/health', (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const statusMap = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+  res.status(200).json({
+    status: dbState === 1 ? 'healthy' : 'degraded',
+    database: statusMap[dbState] || 'unknown',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 app.get('/', (req, res) => {
   res.send('Amanah Network API is running. Use /api/ for endpoints.');
 });
@@ -1125,8 +1382,9 @@ app.get('/', (req, res) => {
 // Global Error Handling Middleware
 app.use((err, req, res, next) => {
   console.error("--- GLOBAL API ERROR ---", err.stack || err.message || err);
+  const isProd = process.env.NODE_ENV === 'production';
   res.status(err.status || 500).json({
-    error: err.message || "Internal Server Error"
+    error: isProd ? "Internal Server Error" : (err.message || "Internal Server Error")
   });
 });
 

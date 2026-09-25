@@ -2,20 +2,22 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const AuthorizedAgentSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  name: { type: String, required: true, trim: true, maxlength: 100 },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+  password: { type: String, required: true, select: false },
   
-  // KYC Details (Optional Object)
+  // KYC Details
   kyc: {
     type: Object,
     default: {}
   },
 
-  // Permissions
+  // Permissions (RBAC)
   permissions: { type: [String], default: ['TRANSFER'] },
   
   isVerified: { type: Boolean, default: false },
+  failedLoginAttempts: { type: Number, default: 0 },
+  lockUntil: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now }
 });
 

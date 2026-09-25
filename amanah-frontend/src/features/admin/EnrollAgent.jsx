@@ -76,7 +76,7 @@ export default function EnrollAgent() {
 
     setIsLoading(true);
     try {
-      const govKey = (localStorage.getItem('governanceKey') || import.meta.env.VITE_GOVERNANCE_KEY || import.meta.env.VITE_ADMIN_KEY || '').trim();
+      const govKey = (localStorage.getItem('governanceKey') || '').trim();
       await api.post('/api/admin/enroll-agent', { 
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),

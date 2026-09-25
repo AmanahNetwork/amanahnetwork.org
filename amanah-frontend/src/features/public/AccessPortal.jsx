@@ -1,24 +1,36 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../amanahlogo.png';
+import api from '../../api.js';
 
 export default function AccessPortal() {
   const [key, setKey] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleUnlock = (e) => {
+  const handleUnlock = async (e) => {
     if (e) e.preventDefault();
     const cleanKey = (key || '').trim();
-    const targetKey = (import.meta.env.VITE_GOVERNANCE_KEY || import.meta.env.VITE_ADMIN_KEY).trim();
-    if (cleanKey && (cleanKey === targetKey || cleanKey === import.meta.env.VITE_ADMIN_KEY)) {
-      sessionStorage.setItem('transferGovAuth', 'true');
-      sessionStorage.setItem('govAuth', 'true');
-      localStorage.setItem('governanceKey', cleanKey);
+    if (!cleanKey) return;
+
+    setIsLoading(true);
+    try {
+      const res = await api.post('/api/admin/verify-vault', { key: cleanKey });
+      if (res.data && res.data.unlocked) {
+        sessionStorage.setItem('transferGovAuth', 'true');
+        sessionStorage.setItem('govAuth', 'true');
+        localStorage.setItem('governanceKey', cleanKey);
+        setKey('');
+        navigate('/admin-login');
+      } else {
+        alert("Invalid Governance Key");
+        setKey('');
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || "Invalid Governance Key");
       setKey('');
-      navigate('/admin-login');
-    } else {
-      alert("Invalid Governance Key");
-      setKey(''); // Clear invalid key
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -35,9 +47,10 @@ export default function AccessPortal() {
       />
       <button
         type="submit"
-        className="bg-black text-white px-8 py-3 font-bold hover:bg-gray-800 transition"
+        disabled={isLoading}
+        className="bg-black text-white px-8 py-3 font-bold hover:bg-gray-800 transition disabled:opacity-50"
       >
-        VERIFY & PROCEED
+        {isLoading ? 'VERIFYING...' : 'VERIFY & PROCEED'}
       </button>
     </form>
   );
