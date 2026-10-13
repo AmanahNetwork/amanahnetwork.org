@@ -28,7 +28,7 @@ export default function EnrollAgent() {
         setFormData(prev => ({ ...prev, otp: res.data.debugOtp }));
         alert(`OTP generated (${res.data.debugOtp}). Please enter it and click 'Verify OTP'.`);
       } else {
-        alert("OTP sent to your email! Please check your inbox and spam folder.");
+        alert("OTP sent to your email");
       }
     } catch (err) {
       alert(err.response?.data?.error || "Failed to send OTP.");
@@ -71,7 +71,7 @@ export default function EnrollAgent() {
       alert("Full Name cannot exceed 25 characters.");
       return;
     }
-    
+
     // Password Strength Check: At least 6 chars, 1 uppercase letter, 1 special character
     const passwordRegex = /^(?=.*[A-Z])(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/?]).{6,}$/;
     if (!passwordRegex.test(formData.password)) {
@@ -82,14 +82,14 @@ export default function EnrollAgent() {
     setIsLoading(true);
     try {
       const govKey = (localStorage.getItem('governanceKey') || '').trim();
-      await api.post('/api/admin/enroll-agent', { 
+      await api.post('/api/admin/enroll-agent', {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
         otpVerified: isVerified,
         secretKey: govKey
       }, {
-        headers: { 
+        headers: {
           'x-governance-key': govKey,
           'use-secret-key': govKey
         }
@@ -113,16 +113,16 @@ export default function EnrollAgent() {
           <div className="flex flex-col gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest mb-1">Email Address</label>
-              <input 
+              <input
                 type="email"
                 className="border-2 border-black p-3 w-full"
-                placeholder="agent@amanah.com" 
+                placeholder="agent@amanah.com"
                 value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
-            
-            <button 
+
+            <button
               type="button"
               disabled={isLoading}
               className="bg-black text-white py-3 font-bold uppercase hover:bg-[#284D3D] transition-colors disabled:bg-gray-400"
@@ -133,16 +133,16 @@ export default function EnrollAgent() {
 
             <div className="mt-2">
               <label className="block text-xs font-bold uppercase tracking-widest mb-1">Enter 6-Digit OTP</label>
-              <input 
+              <input
                 type="text"
                 className="border-2 border-black p-3 w-full"
-                placeholder="123456" 
+                placeholder="123456"
                 value={formData.otp}
-                onChange={(e) => setFormData({...formData, otp: e.target.value})} 
+                onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
               />
             </div>
 
-            <button 
+            <button
               type="button"
               disabled={isLoading}
               className="bg-[#284D3D] text-white py-3 font-bold uppercase hover:bg-black transition-colors disabled:bg-gray-400"
@@ -166,28 +166,28 @@ export default function EnrollAgent() {
                   {formData.name.length}/25
                 </span>
               </div>
-              <input 
+              <input
                 type="text"
                 className="border-2 border-black p-3 w-full"
-                placeholder="Agent Full Name (Max 25 characters)" 
+                placeholder="Agent Full Name (Max 25 characters)"
                 maxLength={25}
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value.slice(0, 25)})} 
+                onChange={(e) => setFormData({ ...formData, name: e.target.value.slice(0, 25) })}
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest mb-1">Set Account Password (Min 6 Chars, 1 Uppercase, 1 Special Char e.g. @)</label>
-              <input 
+              <input
                 type="password"
                 className="border-2 border-black p-3 w-full"
-                placeholder="e.g. Amanah@2026" 
+                placeholder="e.g. Amanah@2026"
                 value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})} 
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
             </div>
 
-            <button 
+            <button
               type="button"
               disabled={isLoading}
               className="bg-[#C5A059] text-white py-3 font-bold uppercase hover:bg-black transition-colors disabled:bg-gray-400 mt-2"

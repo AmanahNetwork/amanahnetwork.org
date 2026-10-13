@@ -52,14 +52,14 @@ export default function Donate() {
       setOtpSent(true);
       if (res.data?.debugOtp) {
         setOtp(res.data.debugOtp);
-        setMessage({ 
-          type: 'success', 
-          text: `OTP generated (${res.data.debugOtp}). Please enter it below to verify your email.` 
+        setMessage({
+          type: 'success',
+          text: `OTP generated (${res.data.debugOtp}). Please enter it below to verify your email.`
         });
       } else {
-        setMessage({ 
-          type: 'success', 
-          text: 'OTP sent to your email address! Please check your inbox (and spam/junk folder).' 
+        setMessage({
+          type: 'success',
+          text: 'OTP sent to your email address!'
         });
       }
     } catch (err) {
@@ -210,7 +210,7 @@ export default function Donate() {
           <span className="text-[#C5A059] font-mono tracking-[0.2em] uppercase text-xs font-bold ml-2">Portal</span>
         </div>
         <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-[0.9] mb-6">
-          <span className="text-[#284D3D]">Unified</span> 
+          <span className="text-[#284D3D]">Unified</span>
           <span className="text-[#C5A059] ml-3">Transaction Engine.</span>
         </h2>
         <p className="text-lg text-gray-600 max-w-xl">Your contribution directly drives the high-transparency foundation network.</p>
@@ -230,12 +230,12 @@ export default function Donate() {
               {donorName.length}/25
             </span>
           </div>
-          <input 
-            type="text" 
-            value={donorName} 
+          <input
+            type="text"
+            value={donorName}
             maxLength={25}
-            onChange={(e) => setDonorName(e.target.value.slice(0, 25))} 
-            required 
+            onChange={(e) => setDonorName(e.target.value.slice(0, 25))}
+            required
             placeholder="Your Full Name (Max 25 characters)"
             className="w-full p-4 border-2 border-black focus:border-[#C5A059] outline-none"
           />
@@ -243,13 +243,13 @@ export default function Donate() {
 
         <div>
           <label className="block text-xs font-bold uppercase tracking-widest mb-2">Mobile Number</label>
-          <input 
-            type="tel" 
-            value={mobileNumber} 
+          <input
+            type="tel"
+            value={mobileNumber}
             onChange={(e) => setMobileNumber(e.target.value.replace(/[^0-9]/g, ''))}
             placeholder="Enter 10-digit mobile number"
             maxLength="10"
-            required 
+            required
             className="w-full p-4 border-2 border-black focus:border-[#C5A059] outline-none transition-colors"
           />
         </div>
@@ -257,15 +257,15 @@ export default function Donate() {
         <div>
           <label className="block text-xs font-bold uppercase tracking-widest mb-2">Email Address</label>
           <div className="flex flex-col sm:flex-row gap-2">
-            <input 
-              type="email" 
-              value={donorEmail} 
+            <input
+              type="email"
+              value={donorEmail}
               onChange={(e) => {
                 setDonorEmail(e.target.value);
                 setIsEmailVerified(false);
                 setOtpSent(false);
-              }} 
-              required 
+              }}
+              required
               disabled={isEmailVerified}
               placeholder="you@domain.com"
               className="w-full p-4 border-2 border-black focus:border-[#C5A059] outline-none transition-colors disabled:bg-gray-100"
@@ -288,11 +288,11 @@ export default function Donate() {
           <div className="bg-gray-50 border-2 border-black p-4 space-y-3">
             <label className="block text-xs font-bold uppercase tracking-widest">Enter 6-Digit OTP Sent to Your Email</label>
             <div className="flex flex-col sm:flex-row gap-2">
-              <input 
-                type="text" 
-                value={otp} 
-                onChange={(e) => setOtp(e.target.value)} 
-                placeholder="123456" 
+              <input
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                placeholder="123456"
                 maxLength="6"
                 className="w-full p-3 border-2 border-black outline-none font-mono"
               />
@@ -317,35 +317,35 @@ export default function Donate() {
 
         <div>
           <label className="block text-xs font-bold uppercase tracking-widest mb-2">Donation Amount (INR)</label>
-          <input 
-            type="number" 
-            value={amount} 
+          <input
+            type="number"
+            value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
-            min="1" 
-            required 
+            min="1"
+            required
             placeholder="Enter amount"
             className="w-full p-4 border-2 border-black focus:border-[#C5A059] outline-none transition-colors"
           />
         </div>
 
         <div className="flex items-center space-x-3 py-2">
-          <input 
-            type="checkbox" 
-            id="terms" 
-            checked={agreed} 
-            onChange={(e) => setAgreed(e.target.checked)} 
-            required 
+          <input
+            type="checkbox"
+            id="terms"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            required
             className="w-5 h-5 accent-[#284D3D]"
           />
           <label htmlFor="terms" className="text-xs font-bold uppercase tracking-widest cursor-pointer">
-            I agree to the 
+            I agree to the
             <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-[#C5A059] underline ml-1">Terms & Conditions</Link>
           </label>
         </div>
 
-        <button 
-          type="submit" 
-          disabled={isLoading || !agreed || !isEmailVerified} 
+        <button
+          type="submit"
+          disabled={isLoading || !agreed || !isEmailVerified}
           className="w-full p-4 bg-[#284D3D] text-white font-bold uppercase tracking-widest border-2 border-black hover:bg-black transition-all duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Processing securely...' : !isEmailVerified ? 'Verify Email via OTP First' : 'Authorize Donation'}
