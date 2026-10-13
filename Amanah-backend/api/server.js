@@ -6,7 +6,6 @@ try { dns.setDefaultResultOrder('ipv4first'); } catch (e) { }
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
-import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import axios from 'axios';
@@ -240,77 +239,110 @@ const secureApiGuard = (req, res, next) => {
   console.warn(`[WARN] SecureApiGuard blocked request from IP: ${req.ip}`);
   res.status(403).json({ error: "Access Denied" });
 };
-// --- NODEMAILER & MAIL TRANSPORTER SETUP ---
-const getTransporter = () => {
-  const user = (process.env.EMAIL_USER || '').trim();
-  const pass = (process.env.EMAIL_PASS || '').trim();
-  if (!user || !pass) return null;
-  return nodemailer.createTransport({
-    service: 'gmail',
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user, pass }
-  });
-};
+// --- RESEND EMAIL SERVICE & OFFICIAL IN-CONTEXT HTML TEMPLATES ---
+const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
-const transporter = getTransporter();
-if (transporter) {
-  transporter.verify((error) => {
-    if (error) {
-      console.warn("[WARN] Gmail Nodemailer Transporter Verify:", error.message);
-    } else {
-      console.log("[INFO] Gmail Transporter is ready to send messages");
-    }
-  });
+if (resend) {
+  console.log("[INFO] Resend email service initialized successfully");
+} else {
+  console.warn("[WARN] RESEND_API_KEY is not configured in environment variables");
 }
 
-const resend = (process.env.RESEND_API_KEY || '').trim() ? new Resend(process.env.RESEND_API_KEY.trim()) : null;
+// Official in-context HTML email template generator for Amanah Network
+const renderOfficialEmailHtml = ({ title, preheader, contentHtml, footerNote }) => {
+  const currentYear = new Date().getFullYear();
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title || 'Amanah Network Notification')}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  ${preheader ? `<div style="display: none; max-height: 0px; overflow: hidden; mso-hide: all;">${escapeHtml(preheader)}</div>` : ''}
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f4f6f8; padding: 30px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+          <!-- Official Header -->
+          <tr>
+            <td style="background-color: #284D3D; padding: 28px 32px; text-align: center; border-bottom: 3px solid #C5A059;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 2.5px; color: #ffffff; text-transform: uppercase;">
+                AMANAH <span style="color: #C5A059;">NETWORK</span>
+              </h1>
+              <p style="margin: 6px 0 0; font-size: 11px; letter-spacing: 1.5px; color: #cbd5e1; text-transform: uppercase; font-weight: 600;">
+                Transparent Humanitarian Aid Platform
+              </p>
+            </td>
+          </tr>
+          <!-- Body Content -->
+          <tr>
+            <td style="padding: 32px 32px 24px; line-height: 1.65; font-size: 15px; color: #334155;">
+              ${contentHtml}
+            </td>
+          </tr>
+          <!-- Official Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 22px 32px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #64748b; line-height: 1.5;">
+              <p style="margin: 0 0 6px;">
+                <strong>Amanah Network</strong> &bull; Secured with Cryptographic Audit Integrity
+              </p>
+              ${footerNote ? `<p style="margin: 0 0 6px; color: #94a3b8; font-size: 11px;">${footerNote}</p>` : ''}
+              <p style="margin: 0; color: #94a3b8; font-size: 11px;">
+                &copy; ${currentYear} Amanah Network. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+};
 
-// Unified robust mail sender (Nodemailer Gmail from ENV first -> Resend fallback)
-const sendMailHelper = async ({ to, subject, html, text, fromName = "Amanah Network" }) => {
+// Unified Resend email dispatcher
+const sendMailHelper = async ({ to, subject, html, text, replyTo, fromName = "Amanah Network" }) => {
   const cleanTo = String(to).toLowerCase().trim();
-
-  // 1. Try Nodemailer Gmail directly using ENV credentials
-  const mailer = getTransporter();
-  if (mailer) {
-    try {
-      const user = (process.env.EMAIL_USER || '').trim();
-      await mailer.sendMail({
-        from: `"${fromName}" <${user}>`,
-        to: cleanTo,
-        subject,
-        text: text || '',
-        html: html || `<p>${escapeHtml(text)}</p>`
-      });
-      console.log(`[INFO] Email delivered via Gmail Nodemailer to: ${cleanTo}`);
-      return { success: true, provider: 'nodemailer' };
-    } catch (nodemailerErr) {
-      console.error("[ERROR] Gmail Nodemailer error:", nodemailerErr.message);
-    }
+  if (!cleanTo) {
+    return { success: false, error: "Recipient email is missing" };
   }
 
-  // 2. Try Resend if API key is present
-  if (resend) {
-    try {
-      const fromEmail = process.env.RESEND_FROM_EMAIL || `${fromName} <onboarding@resend.dev>`;
-      const res = await resend.emails.send({
-        from: fromEmail,
-        to: [cleanTo],
-        subject,
-        html: html || `<p>${escapeHtml(text)}</p>`,
-        text: text || ''
-      });
-      if (res && !res.error) {
-        console.log(`[INFO] Email delivered via Resend API to: ${cleanTo}`);
-        return { success: true, provider: 'resend' };
-      }
-    } catch (resendErr) {
-      console.warn("[WARN] Resend attempt failed:", resendErr.message);
-    }
+  if (!resend) {
+    console.warn(`[WARN] Email sending skipped for ${cleanTo}: RESEND_API_KEY not configured`);
+    return { success: false, error: "Resend API key is not configured" };
   }
 
-  return { success: false, error: "No email transport succeeded" };
+  try {
+    const fromEmail = (process.env.RESEND_FROM_EMAIL || '').trim() || `${fromName} <onboarding@resend.dev>`;
+    const payload = {
+      from: fromEmail,
+      to: [cleanTo],
+      subject,
+      html: html || `<p>${escapeHtml(text || '')}</p>`,
+      text: text || ''
+    };
+
+    if (replyTo) {
+      payload.reply_to = String(replyTo).trim();
+    }
+
+    const { data, error } = await resend.emails.send(payload);
+
+    if (error) {
+      console.error(`[ERROR] Resend API error sending to ${cleanTo}:`, error.message || error);
+      return { success: false, error: error.message || "Resend email delivery failed" };
+    }
+
+    console.log(`[INFO] Email delivered via Resend API to: ${cleanTo} (ID: ${data?.id || 'delivered'})`);
+    return { success: true, provider: 'resend', id: data?.id };
+  } catch (resendErr) {
+    console.error(`[ERROR] Resend exception sending to ${cleanTo}:`, resendErr.message);
+    return { success: false, error: resendErr.message };
+  }
 };
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -625,14 +657,28 @@ app.post('/api/register', authLimiter, async (req, res) => {
     delete otpStore[email];
 
     try {
-      if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        await transporter.sendMail({
-          from: `"Amanah Network" <${process.env.EMAIL_USER}>`,
-          to: cleanEmail,
-          subject: 'THANKS FOR REGISTERING WITH AMANAH',
-          text: `Hello ${firstName},\n\nWe are thrilled to welcome you to the Amanah Network! Your account has been created successfully.\nThank you for joining us in making a difference!`,
-        });
-      }
+      const safeFirstName = escapeHtml(String(firstName).trim());
+      const welcomeHtml = renderOfficialEmailHtml({
+        title: "Welcome to Amanah Network",
+        preheader: `Welcome to Amanah Network, ${safeFirstName}! Your account has been created.`,
+        contentHtml: `
+          <h2 style="color: #284D3D; margin-top: 0; font-size: 20px;">Welcome to Amanah Network, ${safeFirstName}!</h2>
+          <p>We are thrilled to welcome you to the <strong>Amanah Network</strong>. Your account has been created and verified successfully.</p>
+          <div style="background-color: #f8fafc; padding: 18px 20px; border-left: 4px solid #C5A059; border-radius: 6px; margin: 22px 0;">
+            <p style="margin: 0 0 6px; font-size: 14px;"><strong>Account Email:</strong> ${escapeHtml(cleanEmail)}</p>
+            <p style="margin: 0; font-size: 14px;"><strong>Account Role:</strong> ${escapeHtml(allowedRole)}</p>
+          </div>
+          <p>Thank you for partnering with us in building complete trust, accountability, and impact in community aid.</p>
+        `,
+        footerNote: "This is an automated confirmation of your Amanah Network account registration."
+      });
+
+      await sendMailHelper({
+        to: cleanEmail,
+        subject: 'Welcome to Amanah Network',
+        html: welcomeHtml,
+        text: `Hello ${firstName},\n\nWe are thrilled to welcome you to the Amanah Network! Your account has been created successfully.\nThank you for joining us in making a difference!`
+      });
     } catch (emailErr) {
       console.error("Email notification warning:", emailErr.message);
     }
@@ -700,23 +746,30 @@ const sendDonationEmail = async (donorEmail, donorName, amount, paymentId) => {
   const safePaymentId = escapeHtml(String(paymentId));
   const safeAmount = Number(amount).toLocaleString('en-IN');
 
+  const receiptHtml = renderOfficialEmailHtml({
+    title: "Donation Receipt - Amanah Network",
+    preheader: `Thank you for your generous contribution of ₹${safeAmount} to Amanah Network.`,
+    contentHtml: `
+      <h2 style="color: #284D3D; margin-top: 0; font-size: 20px;">Thank You for Your Generous Support!</h2>
+      <p>Dear <strong>${safeName}</strong>,</p>
+      <p>We have successfully received and verified your contribution of <strong>₹${safeAmount}</strong>. Your generosity directly powers transparent humanitarian relief.</p>
+      <div style="background-color: #f8fafc; padding: 20px; border-left: 4px solid #284D3D; border-radius: 6px; margin: 22px 0;">
+        <p style="margin: 0 0 8px;"><strong>Donation Amount:</strong> ₹${safeAmount}</p>
+        <p style="margin: 0 0 8px;"><strong>Payment ID:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${safePaymentId}</code></p>
+        <p style="margin: 0;"><strong>Verification Status:</strong> <span style="color: #166534; font-weight: 700;">Verified &amp; Cryptographically Secured</span></p>
+      </div>
+      <p style="font-size: 13px; color: #64748b;">
+        This donation has been recorded into the immutable Amanah Audit Ledger to guarantee 100% accountability.
+      </p>
+    `,
+    footerNote: `Official Receipt &bull; Payment Reference: ${safePaymentId}`
+  });
+
   await sendMailHelper({
     to: donorEmail,
     subject: 'Donation Receipt - Amanah Network',
     fromName: 'Amanah Network',
-    html: `
-      <div style="font-family: sans-serif; max-width: 550px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 8px;">
-        <h2 style="color: #284D3D; margin-top: 0;">Thank You for Your Donation!</h2>
-        <p>Dear <strong>${safeName}</strong>,</p>
-        <p>We have successfully received your contribution of <strong>₹${safeAmount}</strong>. Thank you for supporting the Amanah Network!</p>
-        <div style="background-color: #f7fafc; padding: 15px; border-left: 4px solid #284D3D; margin: 20px 0;">
-          <p style="margin: 5px 0;"><strong>Donation Amount:</strong> ₹${safeAmount}</p>
-          <p style="margin: 5px 0;"><strong>Payment ID:</strong> ${safePaymentId}</p>
-          <p style="margin: 5px 0;"><strong>Status:</strong> Success & Verified</p>
-        </div>
-        <p style="font-size: 12px; color: #718096;">Logged in the Amanah Audit Ledger.</p>
-      </div>
-    `,
+    html: receiptHtml,
     text: `Dear ${donorName}, Thank you for your contribution of INR ${amount}. Payment ID: ${paymentId}.`
   });
 };
@@ -809,16 +862,29 @@ app.post('/api/auth/send-otp', otpLimiter, async (req, res) => {
   otpStore[cleanEmail] = otp;
   otpStore[email] = otp;
 
+  const otpHtml = renderOfficialEmailHtml({
+    title: "Verification OTP Code - Amanah Network",
+    preheader: `Your verification code is ${otp}. Valid for 10 minutes.`,
+    contentHtml: `
+      <div style="text-align: center; padding: 10px 0;">
+        <h2 style="color: #284D3D; margin-top: 0; font-size: 20px;">Email Verification Code</h2>
+        <p style="font-size: 14px; color: #475569; margin: 0 0 24px;">Please use the following 6-digit One-Time Password (OTP) to complete your verification:</p>
+        <div style="display: inline-block; background-color: #f8fafc; border: 2px dashed #C5A059; border-radius: 8px; padding: 16px 32px; margin: 0 auto 20px;">
+          <span style="font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #284D3D; font-family: monospace;">${otp}</span>
+        </div>
+        <p style="font-size: 12px; color: #94a3b8; margin: 15px 0 0;">
+          This code will expire in <strong>10 minutes</strong>. If you did not initiate this request, you can safely ignore this email.
+        </p>
+      </div>
+    `,
+    footerNote: "Never share this code with anyone. Amanah Network will never ask for your OTP."
+  });
+
   const mailResult = await sendMailHelper({
     to: cleanEmail,
     subject: 'Your Amanah Verification OTP Code',
     text: `Your verification OTP code for Amanah Network is: ${otp}`,
-    html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; max-width: 480px; margin: 0 auto; text-align: center;">
-      <h2 style="color: #284D3D;">Amanah Network</h2>
-      <p style="font-size: 14px;">Your 6-digit OTP verification code is:</p>
-      <h1 style="font-size: 32px; letter-spacing: 6px; color: #284D3D; background: #f4f4f4; padding: 10px; border-radius: 4px;">${otp}</h1>
-      <p style="font-size: 12px; color: #888;">If you did not request this, please ignore this message.</p>
-    </div>`
+    html: otpHtml
   });
 
   if (mailResult.success) {
@@ -864,47 +930,39 @@ app.post('/api/contact', contactLimiter, botProtection, async (req, res) => {
     return res.status(400).json({ error: "Please enter a valid email address." });
   }
 
-  const adminEmail = (process.env.EMAIL_USER || '').trim();
-  const emailPass = (process.env.EMAIL_PASS || '').trim();
+  const recipient = (process.env.CONTACT_RECEIVER_EMAIL || process.env.EMAIL_USER || 'amanahnetwork.org@gmail.com').trim();
+  const contactHtml = renderOfficialEmailHtml({
+    title: `New Contact Submission: ${safeName}`,
+    preheader: `New contact submission from ${safeName} (${safeEmail})`,
+    contentHtml: `
+      <h2 style="color: #284D3D; margin-top: 0; font-size: 20px;">New Contact / Association Application</h2>
+      <p>A new inquiry has been submitted through the public Amanah Network portal.</p>
+      <div style="background-color: #f8fafc; padding: 20px; border-left: 4px solid #C5A059; border-radius: 6px; margin: 20px 0;">
+        <p style="margin: 0 0 8px;"><strong>Full Name:</strong> ${safeName}</p>
+        <p style="margin: 0 0 8px;"><strong>Email Address:</strong> <a href="mailto:${safeEmail}" style="color: #284D3D; font-weight: 600;">${safeEmail}</a></p>
+        <p style="margin: 0;"><strong>Mobile Number:</strong> ${safeMobile}</p>
+      </div>
+      <p style="margin: 18px 0 8px; font-weight: 700; color: #1e293b;">Why do you want to join / Message:</p>
+      <div style="background-color: #f1f5f9; padding: 18px; border-radius: 6px; font-style: italic; white-space: pre-wrap; color: #334155; line-height: 1.6;">${safeMessage}</div>
+    `,
+    footerNote: "Reply directly to this email to respond to the applicant."
+  });
 
-  const safeName = escapeHtml(String(name).trim());
-  const safeEmail = escapeHtml(String(email).trim());
-  const safeMobile = mobile ? escapeHtml(String(mobile).trim()) : 'N/A';
-  const safeMessage = escapeHtml(String(message).trim());
-
-  if (adminEmail && emailPass) {
-    try {
-      const mailer = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: adminEmail, pass: emailPass }
-      });
-
-      await mailer.sendMail({
-        from: `"Amanah Contact Form" <${adminEmail}>`,
-        to: adminEmail,
-        replyTo: safeEmail,
-        subject: `New Contact Submission: ${safeName}`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 8px;">
-            <h2 style="color: #284D3D; margin-top: 0;">New Contact Application Details</h2>
-            <p><strong>Full Name:</strong> ${safeName}</p>
-            <p><strong>Email Address:</strong> <a href="mailto:${safeEmail}">${safeEmail}</a></p>
-            <p><strong>Mobile Number:</strong> ${safeMobile}</p>
-            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-            <p><strong>Why do you want to join?</strong></p>
-            <div style="background-color: #f7fafc; padding: 15px; border-left: 4px solid #284D3D; font-style: italic; white-space: pre-wrap;">${safeMessage}</div>
-          </div>
-        `
-      });
-      console.log(`Contact application from ${safeName} (${safeEmail}) emailed to ${adminEmail}`);
-      return res.status(200).json({ message: "Application submitted successfully." });
-    } catch (err) {
-      console.error("Contact Mailer Error:", err.message);
-      return res.status(200).json({ message: "Application received." });
-    }
+  try {
+    await sendMailHelper({
+      to: recipient,
+      replyTo: safeEmail,
+      subject: `New Contact Submission: ${safeName}`,
+      fromName: "Amanah Contact Portal",
+      html: contactHtml,
+      text: `New Contact Submission:\nFull Name: ${safeName}\nEmail: ${safeEmail}\nMobile: ${safeMobile}\nMessage:\n${safeMessage}`
+    });
+    console.log(`[INFO] Contact application from ${safeName} (${safeEmail}) delivered via Resend`);
+    return res.status(200).json({ message: "Application submitted successfully." });
+  } catch (err) {
+    console.error("Contact Mailer Error:", err.message);
+    return res.status(200).json({ message: "Application received." });
   }
-
-  return res.status(200).json({ message: "Application received." });
 });
 
 app.get('/api/auth/digilocker', (req, res) => {
@@ -1140,16 +1198,39 @@ app.post(secretTransferPath,
         }
       });
 
-      // Send Email Notification
+      // Send Email Notification via Resend
       try {
-        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-          await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: transferData.email,
-            subject: "Donation Disbursement Confirmation",
-            text: `Hello ${transferData.orgName}, your donation of ₹${transferData.amount} has been successfully processed and sent to your account.`
-          });
-        }
+        const safeOrgName = escapeHtml(String(transferData.orgName));
+        const safeDisbursedAmount = Number(transferData.amount).toLocaleString('en-IN');
+        const maskedAcc = maskAccountNumber(transferData.accountNumber);
+
+        const disburseHtml = renderOfficialEmailHtml({
+          title: "Aid Disbursement Confirmation",
+          preheader: `Aid disbursement of ₹${safeDisbursedAmount} processed for ${safeOrgName}.`,
+          contentHtml: `
+            <h2 style="color: #284D3D; margin-top: 0; font-size: 20px;">Aid Disbursement Approved &amp; Processed</h2>
+            <p>Hello <strong>${safeOrgName}</strong>,</p>
+            <p>Your approved humanitarian aid disbursement has been successfully processed and transferred to your registered beneficiary account.</p>
+            <div style="background-color: #f8fafc; padding: 20px; border-left: 4px solid #284D3D; border-radius: 6px; margin: 22px 0;">
+              <p style="margin: 0 0 8px;"><strong>Organization / Beneficiary:</strong> ${safeOrgName}</p>
+              <p style="margin: 0 0 8px;"><strong>Disbursed Amount:</strong> ₹${safeDisbursedAmount}</p>
+              <p style="margin: 0 0 8px;"><strong>Account Number:</strong> ${maskedAcc}</p>
+              <p style="margin: 0;"><strong>Transaction ID:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${newTransfer._id}</code></p>
+            </div>
+            <p style="font-size: 13px; color: #64748b;">
+              This transaction has been cryptographically signed and logged onto the immutable Amanah Governance Ledger.
+            </p>
+          `,
+          footerNote: `Disbursement Confirmation &bull; Reference ID: ${newTransfer._id}`
+        });
+
+        await sendMailHelper({
+          to: transferData.email,
+          subject: "Donation Disbursement Confirmation - Amanah Network",
+          fromName: "Amanah Governance",
+          html: disburseHtml,
+          text: `Hello ${transferData.orgName}, your donation of INR ${transferData.amount} has been successfully processed and sent to account ${maskedAcc}. Transaction ID: ${newTransfer._id}.`
+        });
       } catch (mailErr) {
         console.error("Disbursement Mail Warning:", mailErr.message);
       }
@@ -1290,12 +1371,44 @@ app.post('/api/admin/send-ledger-email', adminAuth, async (req, res) => {
       </div>
     `;
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    const reportHtml = renderOfficialEmailHtml({
+      title: `Amanah Audit Ledger Report (${new Date().toLocaleDateString('en-IN')})`,
+      preheader: `Official Amanah Network cryptographic audit report. Total entries: ${logs.length}.`,
+      contentHtml: `
+        <h2 style="color: #284D3D; margin-top: 0; font-size: 20px;">Cryptographic Audit Ledger Report</h2>
+        <p><strong>Generated on:</strong> ${new Date().toLocaleString('en-IN')}</p>
+        <p><strong>Total Recorded Ledger Entries:</strong> ${logs.length}</p>
+        <div style="overflow-x: auto; margin-top: 20px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <thead>
+              <tr style="background-color: #284D3D; color: #ffffff; text-align: left;">
+                <th style="padding: 10px; border: 1px solid #e2e8f0;">Date</th>
+                <th style="padding: 10px; border: 1px solid #e2e8f0;">Action</th>
+                <th style="padding: 10px; border: 1px solid #e2e8f0;">Target</th>
+                <th style="padding: 10px; border: 1px solid #e2e8f0;">Amount</th>
+                <th style="padding: 10px; border: 1px solid #e2e8f0;">Txn ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || '<tr><td colspan="5" style="padding: 15px; text-align: center; color: #888;">No ledger entries found.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `,
+      footerNote: "Amanah Governance System &bull; Cryptographically Verified Ledger"
+    });
+
+    const mailRes = await sendMailHelper({
       to: recipientEmail,
       subject: `Amanah Audit Ledger Report (${new Date().toLocaleDateString('en-IN')})`,
-      html: htmlContent
+      fromName: "Amanah Governance",
+      html: reportHtml,
+      text: `Amanah Audit Ledger Report generated on ${new Date().toLocaleDateString('en-IN')}. Total records: ${logs.length}.`
     });
+
+    if (!mailRes.success) {
+      return res.status(500).json({ error: mailRes.error || "Failed to send ledger email via Resend." });
+    }
 
     res.status(200).json({ message: `Ledger report sent successfully to ${recipientEmail}` });
   } catch (error) {

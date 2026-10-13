@@ -44,7 +44,7 @@ graph TD
     API["Express Backend API Server"]
     DB[("MongoDB Atlas Database")]
     PG["Razorpay Payment Gateway"]
-    SMTP["Nodemailer / Resend SMTP"]
+    RESEND["Resend API Email Delivery"]
 
     User -- "HTTPS / TLS 1.3" --> CDN
     CDN -- "Routes /api/*" --> API
@@ -126,7 +126,7 @@ sequenceDiagram
 - **Recovery Point Objective (RPO)**: **< 1 minute** (Continuous point-in-time database snapshots with automated oplog replay).
 
 ### 5.2 Fault Tolerance & Graceful Degradation
-1. **Third-Party Email Services**: Dual-layer email delivery mechanism. Nodemailer (Primary Gmail SMTP) falls back to Resend API. If both are temporarily unreachable, financial transactions still succeed, and failures are recorded in the audit log for asynchronous retry.
+1. **Third-Party Email Services**: High-deliverability Resend API integration with official branded HTML templates. If the email API is temporarily unreachable, financial transactions still succeed, and failures are recorded in the audit log for asynchronous retry.
 2. **Database Reconnection Logic**: `connectDB()` incorporates retry backoff with 30 attempts at 500ms intervals before bubbling connection exceptions.
 3. **Database Transactions**: Fund disbursement utilizes MongoDB replica set sessions (`startSession` / `startTransaction`). In the event of ledger recording failure, disbursement transactions automatically rollback.
 
