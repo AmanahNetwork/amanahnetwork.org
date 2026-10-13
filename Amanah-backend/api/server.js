@@ -252,6 +252,7 @@ if (resend) {
 // Official in-context HTML email template generator for Amanah Network
 const renderOfficialEmailHtml = ({ title, preheader, contentHtml, footerNote }) => {
   const currentYear = new Date().getFullYear();
+  const logoUrl = (process.env.PUBLIC_LOGO_URL || 'https://amanahnetwork.in/amanahlogo.png').trim();
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -266,10 +267,23 @@ const renderOfficialEmailHtml = ({ title, preheader, contentHtml, footerNote }) 
     <tr>
       <td align="center">
         <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
-          <!-- Official Header -->
+          <!-- Official Header with Logo PFP -->
           <tr>
-            <td style="background-color: #284D3D; padding: 28px 32px; text-align: center; border-bottom: 3px solid #C5A059;">
-              <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 2.5px; color: #ffffff; text-transform: uppercase;">
+            <td style="background-color: #284D3D; padding: 26px 32px 24px; text-align: center; border-bottom: 3px solid #C5A059;">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto 12px;">
+                <tr>
+                  <td align="center" style="background-color: #ffffff; width: 64px; height: 64px; border-radius: 50%; border: 2.5px solid #C5A059; padding: 4px; box-shadow: 0 3px 10px rgba(0,0,0,0.25);">
+                    <img 
+                      src="${logoUrl}" 
+                      alt="Amanah Network" 
+                      width="56" 
+                      height="56" 
+                      style="display: block; width: 56px; height: 56px; border-radius: 50%; object-fit: contain;" 
+                    />
+                  </td>
+                </tr>
+              </table>
+              <h1 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: 2.5px; color: #ffffff; text-transform: uppercase;">
                 AMANAH <span style="color: #C5A059;">NETWORK</span>
               </h1>
               <p style="margin: 6px 0 0; font-size: 11px; letter-spacing: 1.5px; color: #cbd5e1; text-transform: uppercase; font-weight: 600;">
