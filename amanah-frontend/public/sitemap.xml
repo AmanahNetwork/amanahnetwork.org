@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- Main / Homepage Route -->
   <url>
-    <loc>http://amanahnetwork.in/</loc>
+    <loc>https://amanahnetwork.in/</loc>
     <lastmod>2026-10-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
@@ -10,55 +10,55 @@
 
   <!-- Public Feature Routes -->
   <url>
-    <loc>http://amanahnetwork.in/donate</loc>
+    <loc>https://amanahnetwork.in/donate</loc>
     <lastmod>2026-10-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://amanahnetwork.in/request-aid</loc>
+    <loc>https://amanahnetwork.in/request-aid</loc>
     <lastmod>2026-10-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://amanahnetwork.in/vision</loc>
+    <loc>https://amanahnetwork.in/vision</loc>
     <lastmod>2026-10-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>http://amanahnetwork.in/council</loc>
+    <loc>https://amanahnetwork.in/council</loc>
     <lastmod>2026-10-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>http://amanahnetwork.in/associates</loc>
+    <loc>https://amanahnetwork.in/associates</loc>
     <lastmod>2026-10-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>http://amanahnetwork.in/timeline</loc>
+    <loc>https://amanahnetwork.in/timeline</loc>
     <lastmod>2026-10-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>http://amanahnetwork.in/contact</loc>
+    <loc>https://amanahnetwork.in/contact</loc>
     <lastmod>2026-10-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>http://amanahnetwork.in/terms</loc>
+    <loc>https://amanahnetwork.in/terms</loc>
     <lastmod>2026-10-13</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>http://amanahnetwork.in/privacy</loc>
+    <loc>https://amanahnetwork.in/privacy</loc>
     <lastmod>2026-10-13</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
