@@ -1334,50 +1334,30 @@ app.post('/api/admin/send-ledger-email', adminAuth, async (req, res) => {
       </tr>
     `).join('');
 
-    const htmlContent = `
-      <div style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; border: 1px solid #eee;">
-        <h2 style="color: #284D3D; margin-bottom: 5px;">Amanah Network Audit Ledger Report</h2>
-        <p style="color: #666; font-size: 12px; margin-top: 0;">Generated on ${new Date().toLocaleString('en-IN')}</p>
-
-        <div style="display: flex; gap: 15px; margin: 20px 0; background: #f9f9f9; padding: 15px; border-radius: 4px;">
-          <div style="margin-right: 20px;">
-            <div style="font-size: 11px; text-transform: uppercase; color: #666;">Total Received</div>
-            <div style="font-size: 20px; font-weight: bold; color: #2e7d32;">₹${totalReceived.toLocaleString()}</div>
-          </div>
-          <div style="margin-right: 20px;">
-            <div style="font-size: 11px; text-transform: uppercase; color: #666;">Total Spent</div>
-            <div style="font-size: 20px; font-weight: bold; color: #c62828;">₹${totalSpent.toLocaleString()}</div>
-          </div>
-          <div>
-            <div style="font-size: 11px; text-transform: uppercase; color: #666;">Current Reserve</div>
-            <div style="font-size: 20px; font-weight: bold; color: #1565c0;">₹${(totalReceived - totalSpent).toLocaleString()}</div>
-          </div>
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
-          <thead>
-            <tr style="background-color: #284D3D; color: white;">
-              <th style="padding: 10px; border: 1px solid #ddd;">Date</th>
-              <th style="padding: 10px; border: 1px solid #ddd;">Action</th>
-              <th style="padding: 10px; border: 1px solid #ddd;">Target</th>
-              <th style="padding: 10px; border: 1px solid #ddd;">Amount</th>
-              <th style="padding: 10px; border: 1px solid #ddd;">Txn ID</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows || '<tr><td colspan="5" style="padding: 15px; text-align: center; color: #888;">No ledger entries found.</td></tr>'}
-          </tbody>
-        </table>
-      </div>
-    `;
-
     const reportHtml = renderOfficialEmailHtml({
       title: `Amanah Audit Ledger Report (${new Date().toLocaleDateString('en-IN')})`,
-      preheader: `Official Amanah Network cryptographic audit report. Total entries: ${logs.length}.`,
+      preheader: `Official Amanah Network cryptographic audit report. Total entries: ${ledgerEntries.length}.`,
       contentHtml: `
         <h2 style="color: #284D3D; margin-top: 0; font-size: 20px;">Cryptographic Audit Ledger Report</h2>
-        <p><strong>Generated on:</strong> ${new Date().toLocaleString('en-IN')}</p>
-        <p><strong>Total Recorded Ledger Entries:</strong> ${logs.length}</p>
+        <p style="margin: 4px 0 16px; color: #64748b; font-size: 13px;">Generated on ${new Date().toLocaleString('en-IN')} &bull; Total entries: <strong>${ledgerEntries.length}</strong></p>
+
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px;">
+          <tr>
+            <td style="padding: 10px; text-align: center;">
+              <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700;">Total Received</div>
+              <div style="font-size: 20px; font-weight: 800; color: #166534; margin-top: 4px;">₹${totalReceived.toLocaleString('en-IN')}</div>
+            </td>
+            <td style="padding: 10px; text-align: center; border-left: 1px solid #e2e8f0;">
+              <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700;">Total Disbursed</div>
+              <div style="font-size: 20px; font-weight: 800; color: #991b1b; margin-top: 4px;">₹${totalSpent.toLocaleString('en-IN')}</div>
+            </td>
+            <td style="padding: 10px; text-align: center; border-left: 1px solid #e2e8f0;">
+              <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700;">Current Reserve</div>
+              <div style="font-size: 20px; font-weight: 800; color: #1e40af; margin-top: 4px;">₹${(totalReceived - totalSpent).toLocaleString('en-IN')}</div>
+            </td>
+          </tr>
+        </table>
+
         <div style="overflow-x: auto; margin-top: 20px;">
           <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
             <thead>
@@ -1403,7 +1383,7 @@ app.post('/api/admin/send-ledger-email', adminAuth, async (req, res) => {
       subject: `Amanah Audit Ledger Report (${new Date().toLocaleDateString('en-IN')})`,
       fromName: "Amanah Governance",
       html: reportHtml,
-      text: `Amanah Audit Ledger Report generated on ${new Date().toLocaleDateString('en-IN')}. Total records: ${logs.length}.`
+      text: `Amanah Audit Ledger Report generated on ${new Date().toLocaleDateString('en-IN')}.\nTotal records: ${ledgerEntries.length}\nTotal Received: INR ${totalReceived}\nTotal Disbursed: INR ${totalSpent}\nCurrent Reserve: INR ${totalReceived - totalSpent}.`
     });
 
     if (!mailRes.success) {
