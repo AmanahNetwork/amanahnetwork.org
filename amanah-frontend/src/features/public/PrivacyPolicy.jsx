@@ -13,7 +13,7 @@ export default function PrivacyPolicy() {
           <span className="text-[#284D3D]">Privacy</span> <span className="text-[#C5A059]">Policy</span>
         </h1>
         <p className="text-sm font-mono uppercase tracking-widest text-gray-500">
-          Last Updated: August 25, 2026 | Version 1.0
+          Last Updated: August 25, 2026
         </p>
       </header>
 
@@ -26,7 +26,7 @@ export default function PrivacyPolicy() {
 
       {/* Structured Sections in Full Sentences */}
       <div className="space-y-12 text-gray-700">
-        
+
         {/* Section 1 */}
         <section className="space-y-4">
           <h2 className="text-2xl font-bold uppercase tracking-tight text-[#284D3D] border-b border-gray-200 pb-2">
@@ -93,7 +93,7 @@ export default function PrivacyPolicy() {
             7. Grievance Officer & Contact Information
           </h2>
           <p className="leading-relaxed">
-            For any inquiries, concerns, or data access requests regarding this Privacy Policy, please contact our designated Grievance Officer (Legal & Governance Cell, Amanah Network) via email at contact@amanahnetwork.in, phone at 7889381717, or mail at our Registered Entity in India. We aim to acknowledge all privacy inquiries within 3 business days and resolve them within 7 business days of receipt.
+            For any inquiries, concerns, or data access requests regarding this Privacy Policy, please contact our designated Grievance Officer (Legal & Governance Cell, Amanah Network) via email at admin.amanahnetwork@gmail.com, phone at XXXXXXXXXX, or mail at our Registered Entity in India. We aim to acknowledge all privacy inquiries within 3 business days and resolve them within 7 business days of receipt.
           </p>
         </section>
 

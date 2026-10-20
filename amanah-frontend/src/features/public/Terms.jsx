@@ -13,7 +13,7 @@ export default function Terms() {
           <span className="text-[#284D3D]">Terms &</span> <span className="text-[#C5A059]">Conditions</span>
         </h1>
         <p className="text-sm font-mono uppercase tracking-widest text-gray-500">
-          Last Updated: August 25, 2026 | Document ID: AMN-TC-2026
+          Last Updated: August 25, 2026
         </p>
       </header>
 
@@ -44,8 +44,8 @@ export default function Terms() {
           </p>
           <div className="bg-gray-50 p-4 border border-gray-200 font-mono text-sm space-y-1 text-gray-800">
             <p><strong>Registered Office:</strong> Still Pending</p>
-            <p><strong>Email:</strong> contact@amanahnetwork.in</p>
-            <p><strong>Phone:</strong> 7889381717</p>
+            <p><strong>Email:</strong> admin.amanahnetwork@gmail.com</p>
+            <p><strong>Phone:</strong> XXXXXXXXXX</p>
           </div>
         </section>
 
@@ -199,7 +199,7 @@ export default function Terms() {
             16. Contact Us
           </h2>
           <p className="leading-relaxed text-sm font-mono">
-            For inquiries regarding our terms, please contact Amanah Network (Registered Office: Still Pending) via email at contact@amanahnetwork.in or phone at 7889381717.
+            For inquiries regarding our terms, please contact Amanah Network (Registered Office: Still Pending) via email at admin.amanahnetwork@gmail.com or phone at XXXXXXXXXX.
           </p>
         </section>
 

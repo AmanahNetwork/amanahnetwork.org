@@ -17,7 +17,7 @@ export default function Home() {
           GOVERNANCE.
         </h1>
         <p className="max-w-xl text-lg md:text-xl text-gray-600 mb-12 leading-relaxed">
-          The Amanah Network utilizes blockchain technology to create a decentralised, 100% transparent educational sponsorship platform for underprivileged youth.
+          The Amanah Network utilizes Real-time technology to create a decentralised, 100% transparent educational sponsorship platform for underprivileged youth.
         </p>
         <Link to="/vision" className="inline-block px-10 py-4 bg-black text-white font-bold uppercase tracking-widest hover:bg-[#C5A059] transition-all duration-300">
           Explore Vision & Mission
